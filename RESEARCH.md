@@ -617,3 +617,34 @@
   1. spinner 一個都沒轉過。原因見中途觀察：shaping 把游標拉回中心，但空點懲罰讓 agent 不按鍵
   2. 非 spinner 的 miss 從 4 增加到 50（一般 circle 31、連打 17）。最可能的原因是最佳 checkpoint 在 4.5M 步，比 Exp 009 的 17.5M 步早很多，訓練量不夠；也可能是 spinner shaping 拉住游標，影響了 spinner 結束後的第一顆物件。這個 run 提前停止，沒辦法區分這兩種原因
   3. 100 的比例反而更低（0.87%），隨機譜的 acc 也比較高。驗證集挑到早期 checkpoint，可能是因為驗證集太小（5 張譜），對 miss 和 100 的取捨很敏感
+
+### 工程：Linux（假設 S3）（2026-11-01）
+- 環境：同一台電腦的 WSL2 Ubuntu 24.04（16 執行緒、7GB 記憶體，可以用 RTX 4060），Python 3.12、torch 2.14.1+cu130、SB3 2.9.2
+  - 程式碼和資料直接讀 `/mnt/c` 上的同一份，結果寫回同一個 `runs/`
+- 正確性：在 Linux 上跑快照比對（9 張譜 × 3 種策略），判定、子物件、replay 幀完全相同，觀察值最大差 2.5e-16
+- 速度（同一時段，Windows 和 Linux 交替量測兩輪，8 env，wide 譜）：
+
+| | Windows | Linux（WSL2） | Linux / Windows |
+|---|---|---|---|
+| 純 CPU | 3646、3925 fps | 5735、5523 fps | 1.49 倍 |
+| GPU 混合模式 | 4809、4807 fps | **7150、6438 fps** | **1.41 倍** |
+| 一次 PPO 更新（CPU） | 0.70–0.79 s | 0.43–0.50 s | |
+
+- 結論：**S3 成立，而且效果比預期大**（預估 10–20%，實際 41–49%）
+  - Linux + GPU 混合模式是 Windows 純 CPU 的 **約 1.8 倍**
+  - 連 PPO 更新在 Linux 上都快了 1.6 倍，代表差距不只是開 process 的成本，PyTorch 的 CPU 運算在 Linux 上也比較快
+  - 之後的實驗都在 WSL 用 `--device hybrid` 跑
+
+### Exp 012 — 真實譜庫訓練（H1）（2026-11-01）
+- **假設**：一半的回合改成從真實 ranked 譜切出來的 40 個物件，agent 會學到隨機生成器做不出來的真實節奏和型態（譜師的 pattern、真實的 slider 形狀、變速），在沒看過的真實譜上打得更好
+- **資料**：HF project-riz/osu-beatmaps 前 3 片，train 5082 張（每回合隨機挑一張、隨機挑起點），和測試集完全分開（依 beatmapset 切；原本 26 張測試譜所在的 beatmapset 也排除）
+- **操作變因**：`--pool maps/hf/train --pool-frac 0.5`（50% 的回合用真實譜，50% 用 wide 隨機譜）
+  - 驗證集跟著改：5 張 wide 隨機譜 + 5 段 HF 驗證譜（各 100 物件），因為挑 checkpoint 也要涵蓋新的訓練分布
+- **控制變因**：沿用 Exp 011 的設定：wide、`--timing 0.3`、`--spin-shaping`、`--spin-free-press`、8 env、n_steps 1024、seed 0、20M 步
+  - 和 Exp 011 不同：改在 Linux 跑（S3，已驗證判定相同）
+  - 開始時 Exp 011 的評估還在 Windows 上跑，前約 20 分鐘會互相搶 CPU
+- **成功標準**（以 Exp 011 為基準，訓練前先定好）：
+  1. HF 測試譜（60 張）acc 比 Exp 011 高，或 FC 數比較多
+  2. 原本 26 張真實譜的 acc 不低於 Exp 011 減 0.5%
+  3. narrow / wide 隨機譜可以下降（隨機譜的訓練量少了一半），但不超過 1.5%
+- 紀錄：`runs/*-pool120/`
