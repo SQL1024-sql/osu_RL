@@ -12,6 +12,7 @@ REWARD = {300: 1.0, 100: 0.4, 50: 0.1, 0: -1.0}
 NESTED_REWARD = {True: 0.1, False: -0.3}  # slider head / tick / repeat / tail
 SPIN_REWARD = 0.5  # spread over the spins required to clear a spinner
 CLICK_PENALTY = -0.05
+TIMING_MS = 25  # circle timing bonus fades to 0 at this error, whatever the map's OD (about OD9's 300 window)
 SHAPING = 1.0
 CURSOR_MARGIN = 100  # the real cursor can leave the playfield, and slider paths sometimes do
 LOOKAHEAD_MS = (50, 150)  # extra slider ball positions in observation (besides next step)
@@ -19,9 +20,10 @@ CURSOR_MAX = PLAYFIELD + CURSOR_MARGIN
 
 
 class OsuEnv(gym.Env):
-    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow"):
+    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0):
         self.fixed = beatmap
         self.diff = diff  # difficulty range of the random training maps, see beatmap.DIFF
+        self.timing = timing  # max bonus for a centred circle hit, see TIMING_MS
         self.segment = segment
         self.dt = 1000 / hz
         self.max_speed = MAX_CURSOR_SPEED * self.dt  # osu px per step
@@ -149,7 +151,8 @@ class OsuEnv(gym.Env):
         if self.kinds[i] == SLIDER:  # classic mod: slider head is plain hit/miss within the 50 window
             return self._start_slider(i, e <= w50, key if e <= w50 else None, timed_out=err is None)
         self.done[i] = True
-        return self._judge(i, 300 if e <= w300 else 100 if e <= w100 else 50 if e <= w50 else 0)
+        bonus = self.timing * max(0.0, 1 - e / TIMING_MS) if e <= w50 else 0.0
+        return self._judge(i, 300 if e <= w300 else 100 if e <= w100 else 50 if e <= w50 else 0) + bonus
 
     def _judge(self, i, score):
         self.judgements.append((i, self.t, score))

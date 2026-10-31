@@ -15,6 +15,7 @@ import torch
 import env as env_mod
 from beatmap import parse_osu, random_beatmap
 from env import OsuEnv
+from grouped_vec_env import GroupedSubprocVecEnv
 from play import run
 
 
@@ -49,23 +50,27 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--steps", type=float, default=5e6)
     p.add_argument("--envs", type=int, default=8)
+    p.add_argument("--workers", type=int, default=0, help="worker processes for the envs; 0 = one process per env")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--hz", type=int, default=60)
     p.add_argument("--gamma", type=float, default=0.99)
     p.add_argument("--eval-map", default="maps/bakenohana.osu")
     p.add_argument("--name", default="")
+    p.add_argument("--timing", type=float, default=0.0, help="max timing bonus per circle hit (env.TIMING_MS)")
     p.add_argument("--diff", default="narrow", choices=["narrow", "wide"], help="CS / AR / OD range of training maps")
     args = p.parse_args()
     torch.set_num_threads(4)  # the default (all cores) fights the env worker processes: 4 was fastest on i7-13620H with 8 envs
 
     run_dir = os.path.join("runs", time.strftime("%Y%m%d-%H%M") + (f"-{args.name}" if args.name else ""))
-    hparams = dict(n_steps=1024, batch_size=2048, gamma=args.gamma, policy_kwargs=dict(net_arch=[256, 256]))
+    hparams = dict(n_steps=8192 // args.envs,  # 8192 samples per update whatever the env count
+                    batch_size=2048, gamma=args.gamma, policy_kwargs=dict(net_arch=[256, 256]))
     os.makedirs(run_dir)
     with open(os.path.join(run_dir, "config.json"), "w") as f:
-        consts = {k: getattr(env_mod, k) for k in ("MAX_CURSOR_SPEED", "K", "MISS_WINDOW", "REWARD", "NESTED_REWARD", "SPIN_REWARD", "CLICK_PENALTY", "SHAPING", "CURSOR_MARGIN", "LOOKAHEAD_MS")}
+        consts = {k: getattr(env_mod, k) for k in ("MAX_CURSOR_SPEED", "K", "MISS_WINDOW", "REWARD", "NESTED_REWARD", "SPIN_REWARD", "CLICK_PENALTY", "SHAPING", "CURSOR_MARGIN", "LOOKAHEAD_MS", "TIMING_MS")}
         json.dump(dict(args=vars(args), ppo=hparams, env=consts), f, indent=2, default=str)
 
-    env = make_vec_env(OsuEnv, n_envs=args.envs, vec_env_cls=SubprocVecEnv, seed=args.seed, env_kwargs=dict(hz=args.hz, diff=args.diff))
+    vec = dict(vec_env_cls=GroupedSubprocVecEnv, vec_env_kwargs=dict(workers=args.workers)) if args.workers else dict(vec_env_cls=SubprocVecEnv)
+    env = make_vec_env(OsuEnv, n_envs=args.envs, seed=args.seed, env_kwargs=dict(hz=args.hz, diff=args.diff, timing=args.timing), **vec)
     # small MLP: CPU is faster than GPU here
     model = PPO("MlpPolicy", env, verbose=1, device="cpu", seed=args.seed, **hparams)
     model.set_logger(configure(run_dir, ["stdout", "csv"]))
