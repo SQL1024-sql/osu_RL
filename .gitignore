@@ -8,3 +8,5 @@ models/
 maps/
 .omc/
 .claude/
+# downloaded beatmap datasets (osu! ToS, research only): never committed
+data/
