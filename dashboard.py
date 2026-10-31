@@ -54,11 +54,16 @@ def run_section(run_dir):
            f" timing={a.get('timing', 0)} seed={a['seed']}</p>",
            f"<div class=bar><div style='width:{pct * 100:.1f}%'></div></div>",
            f"<p>{steps / 1e6:.2f}M / {target / 1e6:.0f}M steps ({pct * 100:.1f}%) · elapsed {fmt_time(elapsed)} · {fps:.0f} fps"
+           f" · {elapsed / steps * 1e6:.0f} µs/step ({fmt_time(elapsed / steps * 1e6)} per 1M steps)"
            + (f" · best val {float(best['val/acc']) * 100:.2f}% at {float(best['time/total_timesteps']) / 1e6:.2f}M" if best else "") + "</p>"]
     if val:
-        out.append("<table><tr><th>steps</th><th>val acc</th><th>val miss</th><th>BAKENOHANA acc</th></tr>" + "".join(
+        # time per step over each interval since the previous evaluation, evaluation time included
+        per_step = {id(r): (float(r["time/time_elapsed"]) - float(p["time/time_elapsed"])) / (float(r["time/total_timesteps"]) - float(p["time/total_timesteps"])) * 1e6
+                    for p, r in zip(val, val[1:])}
+        out.append("<table><tr><th>steps</th><th>val acc</th><th>val miss</th><th>BAKENOHANA acc</th><th>µs/step</th></tr>" + "".join(
             f"<tr><td>{float(r['time/total_timesteps']) / 1e6:.2f}M</td><td>{float(r['val/acc']) * 100:.2f}%</td>"
-            f"<td>{float(r['val/miss']):.0f}</td><td>{float(r['eval/acc']) * 100:.2f}%</td></tr>" for r in val[-8:][::-1]) + "</table>")
+            f"<td>{float(r['val/miss']):.0f}</td><td>{float(r['eval/acc']) * 100:.2f}%</td>"
+            + (f"<td>{per_step[id(r)]:.0f}</td></tr>" if id(r) in per_step else "<td>—</td></tr>") for r in val[-8:][::-1]) + "</table>")
     if os.path.exists(results):
         md = open(results, encoding="utf-8").read()
         out.append("<pre>" + html.escape(md[:md.find("## Real maps")].strip()) + "</pre>")
