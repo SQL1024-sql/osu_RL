@@ -1,0 +1,4247 @@
+{
+ "val": [
+  {
+   "ckpt": "rl_model_500000_steps.zip",
+   "steps": 500000,
+   "acc": 0.13999999999999999,
+   "miss": 325
+  },
+  {
+   "ckpt": "rl_model_1000000_steps.zip",
+   "steps": 1000000,
+   "acc": 0.4701764705882353,
+   "miss": 109
+  },
+  {
+   "ckpt": "rl_model_1500000_steps.zip",
+   "steps": 1500000,
+   "acc": 0.7987777777777778,
+   "miss": 22
+  },
+  {
+   "ckpt": "rl_model_2000000_steps.zip",
+   "steps": 2000000,
+   "acc": 0.8834052287581698,
+   "miss": 22
+  },
+  {
+   "ckpt": "rl_model_2500000_steps.zip",
+   "steps": 2500000,
+   "acc": 0.911156862745098,
+   "miss": 22
+  },
+  {
+   "ckpt": "rl_model_3000000_steps.zip",
+   "steps": 3000000,
+   "acc": 0.9425686274509804,
+   "miss": 18
+  },
+  {
+   "ckpt": "rl_model_3500000_steps.zip",
+   "steps": 3500000,
+   "acc": 0.9571699346405229,
+   "miss": 9
+  },
+  {
+   "ckpt": "rl_model_4000000_steps.zip",
+   "steps": 4000000,
+   "acc": 0.9628039215686274,
+   "miss": 9
+  },
+  {
+   "ckpt": "rl_model_4500000_steps.zip",
+   "steps": 4500000,
+   "acc": 0.985732026143791,
+   "miss": 0
+  },
+  {
+   "ckpt": "rl_model_5000000_steps.zip",
+   "steps": 5000000,
+   "acc": 0.9864052287581699,
+   "miss": 1
+  },
+  {
+   "ckpt": "rl_model_5500000_steps.zip",
+   "steps": 5500000,
+   "acc": 0.9897254901960786,
+   "miss": 1
+  },
+  {
+   "ckpt": "rl_model_6000000_steps.zip",
+   "steps": 6000000,
+   "acc": 0.9813660130718954,
+   "miss": 1
+  },
+  {
+   "ckpt": "rl_model_6500000_steps.zip",
+   "steps": 6500000,
+   "acc": 0.993732026143791,
+   "miss": 0
+  },
+  {
+   "ckpt": "rl_model_7000000_steps.zip",
+   "steps": 7000000,
+   "acc": 0.9894771241830066,
+   "miss": 3
+  },
+  {
+   "ckpt": "rl_model_7500000_steps.zip",
+   "steps": 7500000,
+   "acc": 0.9930326797385621,
+   "miss": 0
+  },
+  {
+   "ckpt": "rl_model_8000000_steps.zip",
+   "steps": 8000000,
+   "acc": 0.9814379084967321,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_8500000_steps.zip",
+   "steps": 8500000,
+   "acc": 0.9598692810457516,
+   "miss": 9
+  },
+  {
+   "ckpt": "rl_model_9000000_steps.zip",
+   "steps": 9000000,
+   "acc": 0.9699281045751634,
+   "miss": 5
+  },
+  {
+   "ckpt": "rl_model_9500000_steps.zip",
+   "steps": 9500000,
+   "acc": 0.9652875816993465,
+   "miss": 7
+  },
+  {
+   "ckpt": "rl_model_10000000_steps.zip",
+   "steps": 10000000,
+   "acc": 0.9748169934640523,
+   "miss": 5
+  },
+  {
+   "ckpt": "rl_model_10500000_steps.zip",
+   "steps": 10500000,
+   "acc": 0.9751307189542484,
+   "miss": 4
+  },
+  {
+   "ckpt": "rl_model_11000000_steps.zip",
+   "steps": 11000000,
+   "acc": 0.9844313725490196,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_11500000_steps.zip",
+   "steps": 11500000,
+   "acc": 0.9900588235294118,
+   "miss": 0
+  },
+  {
+   "ckpt": "rl_model_12000000_steps.zip",
+   "steps": 12000000,
+   "acc": 0.9923921568627451,
+   "miss": 1
+  },
+  {
+   "ckpt": "rl_model_12500000_steps.zip",
+   "steps": 12500000,
+   "acc": 0.9897254901960784,
+   "miss": 3
+  },
+  {
+   "ckpt": "rl_model_13000000_steps.zip",
+   "steps": 13000000,
+   "acc": 0.9874901960784314,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_13500000_steps.zip",
+   "steps": 13500000,
+   "acc": 0.9904313725490196,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_14000000_steps.zip",
+   "steps": 14000000,
+   "acc": 0.9799019607843137,
+   "miss": 3
+  },
+  {
+   "ckpt": "rl_model_14500000_steps.zip",
+   "steps": 14500000,
+   "acc": 0.9443464052287581,
+   "miss": 4
+  },
+  {
+   "ckpt": "rl_model_15000000_steps.zip",
+   "steps": 15000000,
+   "acc": 0.9591699346405228,
+   "miss": 4
+  },
+  {
+   "ckpt": "rl_model_15500000_steps.zip",
+   "steps": 15500000,
+   "acc": 0.9477777777777778,
+   "miss": 9
+  },
+  {
+   "ckpt": "rl_model_16000000_steps.zip",
+   "steps": 16000000,
+   "acc": 0.9250261437908496,
+   "miss": 16
+  },
+  {
+   "ckpt": "rl_model_16500000_steps.zip",
+   "steps": 16500000,
+   "acc": 0.9388692810457517,
+   "miss": 8
+  },
+  {
+   "ckpt": "rl_model_17000000_steps.zip",
+   "steps": 17000000,
+   "acc": 0.9601372549019608,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_17500000_steps.zip",
+   "steps": 17500000,
+   "acc": 0.9824444444444446,
+   "miss": 3
+  },
+  {
+   "ckpt": "rl_model_18000000_steps.zip",
+   "steps": 18000000,
+   "acc": 0.9760980392156862,
+   "miss": 3
+  },
+  {
+   "ckpt": "rl_model_18500000_steps.zip",
+   "steps": 18500000,
+   "acc": 0.9730980392156863,
+   "miss": 3
+  },
+  {
+   "ckpt": "rl_model_19000000_steps.zip",
+   "steps": 19000000,
+   "acc": 0.9721503267973857,
+   "miss": 4
+  },
+  {
+   "ckpt": "rl_model_19500000_steps.zip",
+   "steps": 19500000,
+   "acc": 0.9684705882352942,
+   "miss": 6
+  },
+  {
+   "ckpt": "rl_model_20000000_steps.zip",
+   "steps": 20000000,
+   "acc": 0.9601633986928105,
+   "miss": 8
+  },
+  {
+   "ckpt": "model.zip",
+   "steps": -1,
+   "acc": 0.9601633986928105,
+   "miss": 8
+  }
+ ],
+ "best": {
+  "ckpt": "rl_model_6500000_steps.zip",
+  "steps": 6500000,
+  "acc": 0.993732026143791,
+  "miss": 0
+ },
+ "test": [
+  {
+   "map": "100374",
+   "kind": "real",
+   "objects": 389,
+   "sliders": 149,
+   "spinners": 4,
+   "cs": 4.0,
+   "ar": 6.0,
+   "od": 5.0,
+   "model": {
+    "acc": 0.998286203941731,
+    "n300": 388,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 514,
+    "max_combo": 634,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 389,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 634,
+    "max_combo": 634,
+    "fc": true
+   }
+  },
+  {
+   "map": "103019",
+   "kind": "real",
+   "objects": 281,
+   "sliders": 129,
+   "spinners": 6,
+   "cs": 4.0,
+   "ar": 7.0,
+   "od": 5.0,
+   "model": {
+    "acc": 0.9478054567022538,
+    "n300": 260,
+    "n100": 17,
+    "n50": 4,
+    "miss": 0,
+    "combo": 117,
+    "max_combo": 601,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 281,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 601,
+    "max_combo": 601,
+    "fc": true
+   }
+  },
+  {
+   "map": "104973",
+   "kind": "real",
+   "objects": 428,
+   "sliders": 186,
+   "spinners": 4,
+   "cs": 4.0,
+   "ar": 6.0,
+   "od": 6.0,
+   "model": {
+    "acc": 0.9388629283489096,
+    "n300": 390,
+    "n100": 35,
+    "n50": 1,
+    "miss": 2,
+    "combo": 89,
+    "max_combo": 725,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 428,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 725,
+    "max_combo": 725,
+    "fc": true
+   }
+  },
+  {
+   "map": "1124896",
+   "kind": "real",
+   "objects": 1044,
+   "sliders": 347,
+   "spinners": 2,
+   "cs": 3.8,
+   "ar": 8.7,
+   "od": 7.5,
+   "model": {
+    "acc": 0.9936143039591315,
+    "n300": 1034,
+    "n100": 10,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1428,
+    "max_combo": 1428,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 1044,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1428,
+    "max_combo": 1428,
+    "fc": true
+   }
+  },
+  {
+   "map": "112643",
+   "kind": "real",
+   "objects": 541,
+   "sliders": 156,
+   "spinners": 6,
+   "cs": 5.0,
+   "ar": 8.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9864448552064079,
+    "n300": 531,
+    "n100": 7,
+    "n50": 2,
+    "miss": 1,
+    "combo": 160,
+    "max_combo": 785,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 541,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 785,
+    "max_combo": 785,
+    "fc": true
+   }
+  },
+  {
+   "map": "1341554",
+   "kind": "real",
+   "objects": 541,
+   "sliders": 297,
+   "spinners": 0,
+   "cs": 4.3,
+   "ar": 9.3,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9390018484288355,
+    "n300": 493,
+    "n100": 43,
+    "n50": 4,
+    "miss": 1,
+    "combo": 351,
+    "max_combo": 877,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 541,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 877,
+    "max_combo": 877,
+    "fc": true
+   }
+  },
+  {
+   "map": "1431386",
+   "kind": "real",
+   "objects": 370,
+   "sliders": 292,
+   "spinners": 1,
+   "cs": 3.3,
+   "ar": 5.0,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9405405405405406,
+    "n300": 337,
+    "n100": 33,
+    "n50": 0,
+    "miss": 0,
+    "combo": 206,
+    "max_combo": 781,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 370,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 781,
+    "max_combo": 781,
+    "fc": true
+   }
+  },
+  {
+   "map": "1450162",
+   "kind": "real",
+   "objects": 260,
+   "sliders": 155,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 7.5,
+   "od": 7.0,
+   "model": {
+    "acc": 0.9564102564102565,
+    "n300": 243,
+    "n100": 17,
+    "n50": 0,
+    "miss": 0,
+    "combo": 403,
+    "max_combo": 441,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 260,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 441,
+    "max_combo": 441,
+    "fc": true
+   }
+  },
+  {
+   "map": "1597806",
+   "kind": "real",
+   "objects": 115,
+   "sliders": 62,
+   "spinners": 0,
+   "cs": 7.0,
+   "ar": 8.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9666666666666667,
+    "n300": 110,
+    "n100": 3,
+    "n50": 1,
+    "miss": 1,
+    "combo": 152,
+    "max_combo": 181,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 115,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 181,
+    "max_combo": 181,
+    "fc": true
+   }
+  },
+  {
+   "map": "20544",
+   "kind": "real",
+   "objects": 98,
+   "sliders": 23,
+   "spinners": 2,
+   "cs": 5.0,
+   "ar": 2.0,
+   "od": 2.0,
+   "model": {
+    "acc": 0.891156462585034,
+    "n300": 86,
+    "n100": 4,
+    "n50": 0,
+    "miss": 8,
+    "combo": 49,
+    "max_combo": 166,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 98,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 166,
+    "max_combo": 166,
+    "fc": true
+   }
+  },
+  {
+   "map": "2190499",
+   "kind": "real",
+   "objects": 801,
+   "sliders": 482,
+   "spinners": 2,
+   "cs": 3.7,
+   "ar": 9.0,
+   "od": 8.4,
+   "model": {
+    "acc": 0.9600499375780275,
+    "n300": 753,
+    "n100": 48,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1322,
+    "max_combo": 1322,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 801,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1322,
+    "max_combo": 1322,
+    "fc": true
+   }
+  },
+  {
+   "map": "2593923",
+   "kind": "real",
+   "objects": 1110,
+   "sliders": 302,
+   "spinners": 0,
+   "cs": 4.2,
+   "ar": 9.4,
+   "od": 8.7,
+   "model": {
+    "acc": 0.9866366366366366,
+    "n300": 1088,
+    "n100": 21,
+    "n50": 1,
+    "miss": 0,
+    "combo": 1382,
+    "max_combo": 1429,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 1110,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1429,
+    "max_combo": 1429,
+    "fc": true
+   }
+  },
+  {
+   "map": "2768615",
+   "kind": "real",
+   "objects": 143,
+   "sliders": 60,
+   "spinners": 2,
+   "cs": 9.0,
+   "ar": 8.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.6748251748251748,
+    "n300": 87,
+    "n100": 28,
+    "n50": 1,
+    "miss": 27,
+    "combo": 16,
+    "max_combo": 215,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 143,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 215,
+    "max_combo": 215,
+    "fc": true
+   }
+  },
+  {
+   "map": "3227428",
+   "kind": "real",
+   "objects": 98,
+   "sliders": 75,
+   "spinners": 1,
+   "cs": 3.5,
+   "ar": 4.0,
+   "od": 4.0,
+   "model": {
+    "acc": 0.8979591836734694,
+    "n300": 83,
+    "n100": 15,
+    "n50": 0,
+    "miss": 0,
+    "combo": 39,
+    "max_combo": 199,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 98,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 199,
+    "max_combo": 199,
+    "fc": true
+   }
+  },
+  {
+   "map": "3644427",
+   "kind": "real",
+   "objects": 1151,
+   "sliders": 621,
+   "spinners": 2,
+   "cs": 3.0,
+   "ar": 9.2,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9218071242397915,
+    "n300": 1024,
+    "n100": 95,
+    "n50": 32,
+    "miss": 0,
+    "combo": 291,
+    "max_combo": 2256,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 0.9994207935128874,
+    "n300": 1150,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 2255,
+    "max_combo": 2256,
+    "fc": false
+   }
+  },
+  {
+   "map": "37902",
+   "kind": "real",
+   "objects": 192,
+   "sliders": 52,
+   "spinners": 3,
+   "cs": 3.0,
+   "ar": 5.0,
+   "od": 5.0,
+   "model": {
+    "acc": 0.9479166666666666,
+    "n300": 177,
+    "n100": 15,
+    "n50": 0,
+    "miss": 0,
+    "combo": 159,
+    "max_combo": 413,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 192,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 413,
+    "max_combo": 413,
+    "fc": true
+   }
+  },
+  {
+   "map": "39206",
+   "kind": "real",
+   "objects": 475,
+   "sliders": 121,
+   "spinners": 8,
+   "cs": 4.0,
+   "ar": 8.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9719298245614035,
+    "n300": 456,
+    "n100": 15,
+    "n50": 4,
+    "miss": 0,
+    "combo": 162,
+    "max_combo": 660,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 475,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 660,
+    "max_combo": 660,
+    "fc": true
+   }
+  },
+  {
+   "map": "42587",
+   "kind": "real",
+   "objects": 429,
+   "sliders": 147,
+   "spinners": 4,
+   "cs": 5.0,
+   "ar": 8.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9906759906759907,
+    "n300": 423,
+    "n100": 6,
+    "n50": 0,
+    "miss": 0,
+    "combo": 195,
+    "max_combo": 600,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 429,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 600,
+    "max_combo": 600,
+    "fc": true
+   }
+  },
+  {
+   "map": "50859",
+   "kind": "real",
+   "objects": 229,
+   "sliders": 78,
+   "spinners": 3,
+   "cs": 4.0,
+   "ar": 7.0,
+   "od": 7.0,
+   "model": {
+    "acc": 0.9810771470160117,
+    "n300": 223,
+    "n100": 5,
+    "n50": 0,
+    "miss": 1,
+    "combo": 141,
+    "max_combo": 386,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 229,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 386,
+    "max_combo": 386,
+    "fc": true
+   }
+  },
+  {
+   "map": "75858",
+   "kind": "real",
+   "objects": 338,
+   "sliders": 130,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 7.0,
+   "od": 7.0,
+   "model": {
+    "acc": 0.9842209072978304,
+    "n300": 331,
+    "n100": 5,
+    "n50": 0,
+    "miss": 2,
+    "combo": 251,
+    "max_combo": 498,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 338,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 498,
+    "max_combo": 498,
+    "fc": true
+   }
+  },
+  {
+   "map": "801165",
+   "kind": "real",
+   "objects": 1612,
+   "sliders": 674,
+   "spinners": 0,
+   "cs": 4.0,
+   "ar": 9.3,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9598842018196857,
+    "n300": 1516,
+    "n100": 92,
+    "n50": 4,
+    "miss": 0,
+    "combo": 777,
+    "max_combo": 2359,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 1612,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 2359,
+    "max_combo": 2359,
+    "fc": true
+   }
+  },
+  {
+   "map": "871815",
+   "kind": "real",
+   "objects": 134,
+   "sliders": 60,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 8.3,
+   "od": 6.0,
+   "model": {
+    "acc": 0.9875621890547264,
+    "n300": 132,
+    "n100": 1,
+    "n50": 0,
+    "miss": 1,
+    "combo": 163,
+    "max_combo": 236,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 134,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 236,
+    "max_combo": 236,
+    "fc": true
+   }
+  },
+  {
+   "map": "bakenohana",
+   "kind": "real",
+   "objects": 569,
+   "sliders": 351,
+   "spinners": 0,
+   "cs": 4.0,
+   "ar": 9.6,
+   "od": 9.2,
+   "model": {
+    "acc": 0.9463971880492091,
+    "n300": 526,
+    "n100": 36,
+    "n50": 3,
+    "miss": 4,
+    "combo": 547,
+    "max_combo": 1003,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 569,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1003,
+    "max_combo": 1003,
+    "fc": true
+   }
+  },
+  {
+   "map": "renatus_hard",
+   "kind": "real",
+   "objects": 558,
+   "sliders": 396,
+   "spinners": 2,
+   "cs": 4.0,
+   "ar": 7.5,
+   "od": 6.0,
+   "model": {
+    "acc": 0.9178614097968937,
+    "n300": 490,
+    "n100": 65,
+    "n50": 3,
+    "miss": 0,
+    "combo": 291,
+    "max_combo": 1134,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 558,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1134,
+    "max_combo": 1134,
+    "fc": true
+   }
+  },
+  {
+   "map": "renatus_insane",
+   "kind": "real",
+   "objects": 897,
+   "sliders": 309,
+   "spinners": 2,
+   "cs": 4.0,
+   "ar": 9.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9832775919732442,
+    "n300": 875,
+    "n100": 20,
+    "n50": 2,
+    "miss": 0,
+    "combo": 485,
+    "max_combo": 1328,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 897,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1328,
+    "max_combo": 1328,
+    "fc": true
+   }
+  },
+  {
+   "map": "renatus_normal",
+   "kind": "real",
+   "objects": 278,
+   "sliders": 209,
+   "spinners": 2,
+   "cs": 3.0,
+   "ar": 4.0,
+   "od": 3.0,
+   "model": {
+    "acc": 0.9682254196642686,
+    "n300": 265,
+    "n100": 12,
+    "n50": 1,
+    "miss": 0,
+    "combo": 193,
+    "max_combo": 804,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 278,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 804,
+    "max_combo": 804,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20000",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 22,
+   "spinners": 4,
+   "cs": 5.3,
+   "ar": 7.1,
+   "od": 7.7,
+   "model": {
+    "acc": 0.9833333333333333,
+    "n300": 98,
+    "n100": 1,
+    "n50": 0,
+    "miss": 1,
+    "combo": 127,
+    "max_combo": 164,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 164,
+    "max_combo": 164,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20001",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 32,
+   "spinners": 5,
+   "cs": 5.0,
+   "ar": 9.9,
+   "od": 6.7,
+   "model": {
+    "acc": 0.9516666666666667,
+    "n300": 94,
+    "n100": 3,
+    "n50": 1,
+    "miss": 2,
+    "combo": 96,
+    "max_combo": 197,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 197,
+    "max_combo": 197,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20002",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 31,
+   "spinners": 7,
+   "cs": 3.1,
+   "ar": 9.4,
+   "od": 5.4,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 113,
+    "max_combo": 191,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 191,
+    "max_combo": 191,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20003",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 26,
+   "spinners": 3,
+   "cs": 4.0,
+   "ar": 9.6,
+   "od": 7.4,
+   "model": {
+    "acc": 0.985,
+    "n300": 98,
+    "n100": 1,
+    "n50": 1,
+    "miss": 0,
+    "combo": 80,
+    "max_combo": 156,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 156,
+    "max_combo": 156,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20004",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 34,
+   "spinners": 1,
+   "cs": 4.6,
+   "ar": 7.1,
+   "od": 7.5,
+   "model": {
+    "acc": 0.9766666666666667,
+    "n300": 97,
+    "n100": 2,
+    "n50": 0,
+    "miss": 1,
+    "combo": 126,
+    "max_combo": 209,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 209,
+    "max_combo": 209,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20005",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 25,
+   "spinners": 3,
+   "cs": 3.7,
+   "ar": 9.7,
+   "od": 7.8,
+   "model": {
+    "acc": 0.9933333333333333,
+    "n300": 99,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 102,
+    "max_combo": 183,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 183,
+    "max_combo": 183,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20006",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 25,
+   "spinners": 1,
+   "cs": 3.2,
+   "ar": 7.4,
+   "od": 8.6,
+   "model": {
+    "acc": 0.94,
+    "n300": 91,
+    "n100": 9,
+    "n50": 0,
+    "miss": 0,
+    "combo": 78,
+    "max_combo": 168,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 168,
+    "max_combo": 168,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20007",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 21,
+   "spinners": 1,
+   "cs": 3.5,
+   "ar": 10.0,
+   "od": 8.3,
+   "model": {
+    "acc": 0.9666666666666667,
+    "n300": 95,
+    "n100": 5,
+    "n50": 0,
+    "miss": 0,
+    "combo": 99,
+    "max_combo": 151,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 151,
+    "max_combo": 151,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20008",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 33,
+   "spinners": 1,
+   "cs": 4.7,
+   "ar": 9.4,
+   "od": 6.6,
+   "model": {
+    "acc": 0.97,
+    "n300": 96,
+    "n100": 3,
+    "n50": 0,
+    "miss": 1,
+    "combo": 73,
+    "max_combo": 168,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 168,
+    "max_combo": 168,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20009",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 30,
+   "spinners": 2,
+   "cs": 4.0,
+   "ar": 8.5,
+   "od": 5.8,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 166,
+    "max_combo": 166,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 166,
+    "max_combo": 166,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20010",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 30,
+   "spinners": 3,
+   "cs": 3.2,
+   "ar": 9.8,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9783333333333334,
+    "n300": 97,
+    "n100": 2,
+    "n50": 1,
+    "miss": 0,
+    "combo": 174,
+    "max_combo": 174,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 174,
+    "max_combo": 174,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20011",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 19,
+   "spinners": 6,
+   "cs": 3.7,
+   "ar": 7.1,
+   "od": 7.0,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 140,
+    "max_combo": 140,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 140,
+    "max_combo": 140,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20012",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 27,
+   "spinners": 4,
+   "cs": 3.9,
+   "ar": 8.5,
+   "od": 8.9,
+   "model": {
+    "acc": 0.9583333333333334,
+    "n300": 95,
+    "n100": 2,
+    "n50": 1,
+    "miss": 2,
+    "combo": 119,
+    "max_combo": 372,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 0.9916666666666667,
+    "n300": 99,
+    "n100": 0,
+    "n50": 1,
+    "miss": 0,
+    "combo": 184,
+    "max_combo": 372,
+    "fc": false
+   }
+  },
+  {
+   "map": "narrow_20013",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 25,
+   "spinners": 5,
+   "cs": 5.0,
+   "ar": 7.1,
+   "od": 6.2,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 124,
+    "max_combo": 160,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 160,
+    "max_combo": 160,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20014",
+   "kind": "narrow",
+   "objects": 102,
+   "sliders": 29,
+   "spinners": 2,
+   "cs": 4.0,
+   "ar": 7.7,
+   "od": 8.1,
+   "model": {
+    "acc": 0.9787581699346405,
+    "n300": 99,
+    "n100": 2,
+    "n50": 1,
+    "miss": 0,
+    "combo": 88,
+    "max_combo": 225,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 102,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 225,
+    "max_combo": 225,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20015",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 23,
+   "spinners": 2,
+   "cs": 5.1,
+   "ar": 7.5,
+   "od": 6.1,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 116,
+    "max_combo": 164,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 164,
+    "max_combo": 164,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20016",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 33,
+   "spinners": 4,
+   "cs": 3.1,
+   "ar": 9.4,
+   "od": 8.6,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 168,
+    "max_combo": 168,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 168,
+    "max_combo": 168,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20017",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 24,
+   "spinners": 3,
+   "cs": 4.7,
+   "ar": 9.0,
+   "od": 6.7,
+   "model": {
+    "acc": 0.965,
+    "n300": 95,
+    "n100": 4,
+    "n50": 1,
+    "miss": 0,
+    "combo": 68,
+    "max_combo": 181,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 0.9933333333333333,
+    "n300": 99,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 89,
+    "max_combo": 181,
+    "fc": false
+   }
+  },
+  {
+   "map": "narrow_20018",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 40,
+   "spinners": 4,
+   "cs": 4.1,
+   "ar": 8.7,
+   "od": 7.3,
+   "model": {
+    "acc": 0.9633333333333334,
+    "n300": 95,
+    "n100": 4,
+    "n50": 0,
+    "miss": 1,
+    "combo": 88,
+    "max_combo": 232,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 232,
+    "max_combo": 232,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20019",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 27,
+   "spinners": 3,
+   "cs": 3.9,
+   "ar": 7.2,
+   "od": 7.9,
+   "model": {
+    "acc": 0.9666666666666667,
+    "n300": 95,
+    "n100": 5,
+    "n50": 0,
+    "miss": 0,
+    "combo": 110,
+    "max_combo": 177,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 177,
+    "max_combo": 177,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20020",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 29,
+   "spinners": 2,
+   "cs": 4.4,
+   "ar": 8.0,
+   "od": 7.8,
+   "model": {
+    "acc": 0.9633333333333334,
+    "n300": 95,
+    "n100": 4,
+    "n50": 0,
+    "miss": 1,
+    "combo": 70,
+    "max_combo": 179,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 179,
+    "max_combo": 179,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20021",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 21,
+   "spinners": 4,
+   "cs": 3.8,
+   "ar": 7.6,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9833333333333333,
+    "n300": 98,
+    "n100": 1,
+    "n50": 0,
+    "miss": 1,
+    "combo": 147,
+    "max_combo": 179,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 179,
+    "max_combo": 179,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20022",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 30,
+   "spinners": 2,
+   "cs": 4.9,
+   "ar": 7.6,
+   "od": 8.0,
+   "model": {
+    "acc": 0.95,
+    "n300": 93,
+    "n100": 6,
+    "n50": 0,
+    "miss": 1,
+    "combo": 51,
+    "max_combo": 217,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 217,
+    "max_combo": 217,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20023",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 39,
+   "spinners": 4,
+   "cs": 5.0,
+   "ar": 8.7,
+   "od": 5.8,
+   "model": {
+    "acc": 0.9633333333333334,
+    "n300": 95,
+    "n100": 3,
+    "n50": 2,
+    "miss": 0,
+    "combo": 169,
+    "max_combo": 272,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 272,
+    "max_combo": 272,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20024",
+   "kind": "narrow",
+   "objects": 102,
+   "sliders": 25,
+   "spinners": 3,
+   "cs": 5.2,
+   "ar": 7.8,
+   "od": 6.8,
+   "model": {
+    "acc": 0.9640522875816994,
+    "n300": 97,
+    "n100": 4,
+    "n50": 0,
+    "miss": 1,
+    "combo": 102,
+    "max_combo": 184,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 102,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 184,
+    "max_combo": 184,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20025",
+   "kind": "narrow",
+   "objects": 105,
+   "sliders": 21,
+   "spinners": 2,
+   "cs": 3.3,
+   "ar": 8.3,
+   "od": 6.1,
+   "model": {
+    "acc": 0.9777777777777777,
+    "n300": 102,
+    "n100": 2,
+    "n50": 0,
+    "miss": 1,
+    "combo": 138,
+    "max_combo": 187,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 0.9936507936507937,
+    "n300": 104,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 156,
+    "max_combo": 187,
+    "fc": false
+   }
+  },
+  {
+   "map": "narrow_20026",
+   "kind": "narrow",
+   "objects": 105,
+   "sliders": 30,
+   "spinners": 2,
+   "cs": 4.5,
+   "ar": 7.2,
+   "od": 8.5,
+   "model": {
+    "acc": 0.9571428571428572,
+    "n300": 99,
+    "n100": 4,
+    "n50": 1,
+    "miss": 1,
+    "combo": 54,
+    "max_combo": 185,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 105,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 185,
+    "max_combo": 185,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20027",
+   "kind": "narrow",
+   "objects": 101,
+   "sliders": 28,
+   "spinners": 1,
+   "cs": 4.3,
+   "ar": 7.7,
+   "od": 5.5,
+   "model": {
+    "acc": 0.976897689768977,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 1,
+    "combo": 89,
+    "max_combo": 145,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 145,
+    "max_combo": 145,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20028",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 32,
+   "spinners": 3,
+   "cs": 4.7,
+   "ar": 9.1,
+   "od": 6.4,
+   "model": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 166,
+    "max_combo": 166,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 166,
+    "max_combo": 166,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20029",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 21,
+   "spinners": 1,
+   "cs": 3.3,
+   "ar": 8.9,
+   "od": 8.2,
+   "model": {
+    "acc": 0.9766666666666667,
+    "n300": 97,
+    "n100": 2,
+    "n50": 0,
+    "miss": 1,
+    "combo": 143,
+    "max_combo": 148,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 148,
+    "max_combo": 148,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20030",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 34,
+   "spinners": 4,
+   "cs": 4.4,
+   "ar": 9.3,
+   "od": 7.8,
+   "model": {
+    "acc": 0.9933333333333333,
+    "n300": 99,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 109,
+    "max_combo": 181,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 181,
+    "max_combo": 181,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20031",
+   "kind": "narrow",
+   "objects": 103,
+   "sliders": 23,
+   "spinners": 1,
+   "cs": 4.7,
+   "ar": 9.4,
+   "od": 7.0,
+   "model": {
+    "acc": 0.9870550161812298,
+    "n300": 101,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 154,
+    "max_combo": 221,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 103,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 221,
+    "max_combo": 221,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20032",
+   "kind": "narrow",
+   "objects": 103,
+   "sliders": 37,
+   "spinners": 1,
+   "cs": 3.6,
+   "ar": 8.5,
+   "od": 6.4,
+   "model": {
+    "acc": 0.9660194174757282,
+    "n300": 98,
+    "n100": 4,
+    "n50": 1,
+    "miss": 0,
+    "combo": 99,
+    "max_combo": 201,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 103,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 201,
+    "max_combo": 201,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20033",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 30,
+   "spinners": 4,
+   "cs": 3.7,
+   "ar": 7.8,
+   "od": 8.9,
+   "model": {
+    "acc": 0.9733333333333334,
+    "n300": 96,
+    "n100": 4,
+    "n50": 0,
+    "miss": 0,
+    "combo": 151,
+    "max_combo": 151,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 151,
+    "max_combo": 151,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20034",
+   "kind": "narrow",
+   "objects": 102,
+   "sliders": 23,
+   "spinners": 7,
+   "cs": 4.2,
+   "ar": 8.4,
+   "od": 5.8,
+   "model": {
+    "acc": 0.9934640522875817,
+    "n300": 101,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 155,
+    "max_combo": 155,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 102,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 155,
+    "max_combo": 155,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20035",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 21,
+   "spinners": 1,
+   "cs": 3.7,
+   "ar": 7.1,
+   "od": 5.5,
+   "model": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 143,
+    "max_combo": 143,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 143,
+    "max_combo": 143,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20036",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 29,
+   "spinners": 6,
+   "cs": 5.4,
+   "ar": 8.5,
+   "od": 6.5,
+   "model": {
+    "acc": 0.9733333333333334,
+    "n300": 96,
+    "n100": 4,
+    "n50": 0,
+    "miss": 0,
+    "combo": 159,
+    "max_combo": 159,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 159,
+    "max_combo": 159,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20037",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 28,
+   "spinners": 5,
+   "cs": 3.8,
+   "ar": 9.3,
+   "od": 5.5,
+   "model": {
+    "acc": 0.98,
+    "n300": 97,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 176,
+    "max_combo": 176,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 176,
+    "max_combo": 176,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20038",
+   "kind": "narrow",
+   "objects": 101,
+   "sliders": 29,
+   "spinners": 1,
+   "cs": 3.3,
+   "ar": 8.8,
+   "od": 8.9,
+   "model": {
+    "acc": 0.9521452145214522,
+    "n300": 94,
+    "n100": 6,
+    "n50": 1,
+    "miss": 0,
+    "combo": 143,
+    "max_combo": 191,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 191,
+    "max_combo": 191,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20039",
+   "kind": "narrow",
+   "objects": 101,
+   "sliders": 28,
+   "spinners": 2,
+   "cs": 4.3,
+   "ar": 8.9,
+   "od": 7.4,
+   "model": {
+    "acc": 0.9801980198019802,
+    "n300": 98,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 96,
+    "max_combo": 170,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 170,
+    "max_combo": 170,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20040",
+   "kind": "narrow",
+   "objects": 101,
+   "sliders": 25,
+   "spinners": 3,
+   "cs": 4.2,
+   "ar": 7.1,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9801980198019802,
+    "n300": 98,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 110,
+    "max_combo": 161,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 161,
+    "max_combo": 161,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20041",
+   "kind": "narrow",
+   "objects": 101,
+   "sliders": 25,
+   "spinners": 4,
+   "cs": 5.2,
+   "ar": 7.6,
+   "od": 7.4,
+   "model": {
+    "acc": 0.966996699669967,
+    "n300": 97,
+    "n100": 1,
+    "n50": 2,
+    "miss": 1,
+    "combo": 119,
+    "max_combo": 171,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 171,
+    "max_combo": 171,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20042",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 27,
+   "spinners": 4,
+   "cs": 3.6,
+   "ar": 8.7,
+   "od": 8.3,
+   "model": {
+    "acc": 0.9733333333333334,
+    "n300": 96,
+    "n100": 4,
+    "n50": 0,
+    "miss": 0,
+    "combo": 82,
+    "max_combo": 163,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 163,
+    "max_combo": 163,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20043",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 38,
+   "spinners": 4,
+   "cs": 4.1,
+   "ar": 7.5,
+   "od": 6.7,
+   "model": {
+    "acc": 0.98,
+    "n300": 97,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 120,
+    "max_combo": 162,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 162,
+    "max_combo": 162,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20044",
+   "kind": "narrow",
+   "objects": 101,
+   "sliders": 33,
+   "spinners": 3,
+   "cs": 3.6,
+   "ar": 9.6,
+   "od": 8.3,
+   "model": {
+    "acc": 0.9867986798679867,
+    "n300": 99,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 193,
+    "max_combo": 193,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 193,
+    "max_combo": 193,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20045",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 33,
+   "spinners": 2,
+   "cs": 3.5,
+   "ar": 9.8,
+   "od": 6.0,
+   "model": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 169,
+    "max_combo": 169,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 169,
+    "max_combo": 169,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20046",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 31,
+   "spinners": 3,
+   "cs": 3.6,
+   "ar": 9.2,
+   "od": 7.6,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 131,
+    "max_combo": 226,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 226,
+    "max_combo": 226,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20047",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 24,
+   "spinners": 5,
+   "cs": 3.3,
+   "ar": 7.8,
+   "od": 7.6,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 152,
+    "max_combo": 157,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 157,
+    "max_combo": 157,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20048",
+   "kind": "narrow",
+   "objects": 104,
+   "sliders": 23,
+   "spinners": 3,
+   "cs": 5.2,
+   "ar": 9.9,
+   "od": 6.0,
+   "model": {
+    "acc": 0.9871794871794872,
+    "n300": 102,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 144,
+    "max_combo": 144,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 104,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 144,
+    "max_combo": 144,
+    "fc": true
+   }
+  },
+  {
+   "map": "narrow_20049",
+   "kind": "narrow",
+   "objects": 100,
+   "sliders": 30,
+   "spinners": 2,
+   "cs": 4.4,
+   "ar": 7.8,
+   "od": 8.4,
+   "model": {
+    "acc": 0.98,
+    "n300": 97,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 138,
+    "max_combo": 169,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 169,
+    "max_combo": 169,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20000",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 22,
+   "spinners": 4,
+   "cs": 6.5,
+   "ar": 3.2,
+   "od": 7.5,
+   "model": {
+    "acc": 0.955,
+    "n300": 94,
+    "n100": 4,
+    "n50": 1,
+    "miss": 1,
+    "combo": 109,
+    "max_combo": 164,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 164,
+    "max_combo": 164,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20001",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 32,
+   "spinners": 5,
+   "cs": 6.0,
+   "ar": 9.7,
+   "od": 5.3,
+   "model": {
+    "acc": 0.97,
+    "n300": 97,
+    "n100": 0,
+    "n50": 0,
+    "miss": 3,
+    "combo": 96,
+    "max_combo": 197,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 197,
+    "max_combo": 197,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20002",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 31,
+   "spinners": 7,
+   "cs": 2.1,
+   "ar": 8.5,
+   "od": 2.7,
+   "model": {
+    "acc": 0.9666666666666667,
+    "n300": 95,
+    "n100": 5,
+    "n50": 0,
+    "miss": 0,
+    "combo": 124,
+    "max_combo": 191,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 191,
+    "max_combo": 191,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20003",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 26,
+   "spinners": 3,
+   "cs": 4.1,
+   "ar": 9.1,
+   "od": 6.8,
+   "model": {
+    "acc": 0.9916666666666667,
+    "n300": 99,
+    "n100": 0,
+    "n50": 1,
+    "miss": 0,
+    "combo": 80,
+    "max_combo": 156,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 156,
+    "max_combo": 156,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20004",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 34,
+   "spinners": 1,
+   "cs": 5.2,
+   "ar": 3.1,
+   "od": 7.0,
+   "model": {
+    "acc": 0.9666666666666667,
+    "n300": 96,
+    "n100": 2,
+    "n50": 0,
+    "miss": 2,
+    "combo": 82,
+    "max_combo": 209,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 209,
+    "max_combo": 209,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20005",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 25,
+   "spinners": 3,
+   "cs": 3.5,
+   "ar": 9.4,
+   "od": 7.5,
+   "model": {
+    "acc": 0.9933333333333333,
+    "n300": 99,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 102,
+    "max_combo": 183,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 183,
+    "max_combo": 183,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20006",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 25,
+   "spinners": 1,
+   "cs": 2.4,
+   "ar": 4.0,
+   "od": 9.2,
+   "model": {
+    "acc": 0.9,
+    "n300": 85,
+    "n100": 15,
+    "n50": 0,
+    "miss": 0,
+    "combo": 124,
+    "max_combo": 168,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 168,
+    "max_combo": 168,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20007",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 21,
+   "spinners": 1,
+   "cs": 3.1,
+   "ar": 9.9,
+   "od": 8.6,
+   "model": {
+    "acc": 0.9666666666666667,
+    "n300": 95,
+    "n100": 5,
+    "n50": 0,
+    "miss": 0,
+    "combo": 99,
+    "max_combo": 151,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 151,
+    "max_combo": 151,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20008",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 33,
+   "spinners": 1,
+   "cs": 5.3,
+   "ar": 8.6,
+   "od": 5.3,
+   "model": {
+    "acc": 0.9933333333333333,
+    "n300": 99,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 168,
+    "max_combo": 168,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 168,
+    "max_combo": 168,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20009",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 30,
+   "spinners": 2,
+   "cs": 3.9,
+   "ar": 6.4,
+   "od": 3.6,
+   "model": {
+    "acc": 0.9733333333333334,
+    "n300": 96,
+    "n100": 4,
+    "n50": 0,
+    "miss": 0,
+    "combo": 111,
+    "max_combo": 166,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 166,
+    "max_combo": 166,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20010",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 30,
+   "spinners": 3,
+   "cs": 2.4,
+   "ar": 9.4,
+   "od": 8.1,
+   "model": {
+    "acc": 0.98,
+    "n300": 97,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 174,
+    "max_combo": 174,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 174,
+    "max_combo": 174,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20011",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 19,
+   "spinners": 6,
+   "cs": 3.4,
+   "ar": 3.2,
+   "od": 6.0,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 82,
+    "max_combo": 140,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 140,
+    "max_combo": 140,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20012",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 27,
+   "spinners": 4,
+   "cs": 3.7,
+   "ar": 6.4,
+   "od": 9.8,
+   "model": {
+    "acc": 0.8916666666666667,
+    "n300": 85,
+    "n100": 12,
+    "n50": 1,
+    "miss": 2,
+    "combo": 65,
+    "max_combo": 372,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 0.9916666666666667,
+    "n300": 99,
+    "n100": 0,
+    "n50": 1,
+    "miss": 0,
+    "combo": 184,
+    "max_combo": 372,
+    "fc": false
+   }
+  },
+  {
+   "map": "wide_20013",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 25,
+   "spinners": 5,
+   "cs": 6.0,
+   "ar": 3.2,
+   "od": 4.4,
+   "model": {
+    "acc": 0.96,
+    "n300": 94,
+    "n100": 6,
+    "n50": 0,
+    "miss": 0,
+    "combo": 91,
+    "max_combo": 160,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 160,
+    "max_combo": 160,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20014",
+   "kind": "wide",
+   "objects": 102,
+   "sliders": 29,
+   "spinners": 2,
+   "cs": 4.0,
+   "ar": 4.7,
+   "od": 8.1,
+   "model": {
+    "acc": 0.9738562091503268,
+    "n300": 98,
+    "n100": 4,
+    "n50": 0,
+    "miss": 0,
+    "combo": 163,
+    "max_combo": 225,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 102,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 225,
+    "max_combo": 225,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20015",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 23,
+   "spinners": 2,
+   "cs": 6.1,
+   "ar": 4.1,
+   "od": 4.2,
+   "model": {
+    "acc": 0.9433333333333334,
+    "n300": 93,
+    "n100": 4,
+    "n50": 0,
+    "miss": 3,
+    "combo": 35,
+    "max_combo": 164,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 164,
+    "max_combo": 164,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20016",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 33,
+   "spinners": 4,
+   "cs": 2.2,
+   "ar": 8.6,
+   "od": 9.3,
+   "model": {
+    "acc": 0.97,
+    "n300": 96,
+    "n100": 3,
+    "n50": 0,
+    "miss": 1,
+    "combo": 103,
+    "max_combo": 168,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 168,
+    "max_combo": 168,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20017",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 24,
+   "spinners": 3,
+   "cs": 5.4,
+   "ar": 7.6,
+   "od": 5.4,
+   "model": {
+    "acc": 0.97,
+    "n300": 96,
+    "n100": 2,
+    "n50": 2,
+    "miss": 0,
+    "combo": 56,
+    "max_combo": 181,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 0.9933333333333333,
+    "n300": 99,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 88,
+    "max_combo": 181,
+    "fc": false
+   }
+  },
+  {
+   "map": "wide_20018",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 40,
+   "spinners": 4,
+   "cs": 4.2,
+   "ar": 6.9,
+   "od": 6.5,
+   "model": {
+    "acc": 0.9583333333333334,
+    "n300": 95,
+    "n100": 2,
+    "n50": 1,
+    "miss": 2,
+    "combo": 104,
+    "max_combo": 232,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 232,
+    "max_combo": 232,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20019",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 27,
+   "spinners": 3,
+   "cs": 3.9,
+   "ar": 3.5,
+   "od": 7.8,
+   "model": {
+    "acc": 0.98,
+    "n300": 97,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 122,
+    "max_combo": 177,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 177,
+    "max_combo": 177,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20020",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 29,
+   "spinners": 2,
+   "cs": 4.8,
+   "ar": 5.3,
+   "od": 7.5,
+   "model": {
+    "acc": 0.9766666666666667,
+    "n300": 97,
+    "n100": 2,
+    "n50": 0,
+    "miss": 1,
+    "combo": 90,
+    "max_combo": 179,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 179,
+    "max_combo": 179,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20021",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 21,
+   "spinners": 4,
+   "cs": 3.6,
+   "ar": 4.4,
+   "od": 8.1,
+   "model": {
+    "acc": 0.935,
+    "n300": 91,
+    "n100": 7,
+    "n50": 1,
+    "miss": 1,
+    "combo": 43,
+    "max_combo": 179,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 179,
+    "max_combo": 179,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20022",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 30,
+   "spinners": 2,
+   "cs": 5.8,
+   "ar": 4.4,
+   "od": 7.9,
+   "model": {
+    "acc": 0.9333333333333333,
+    "n300": 91,
+    "n100": 7,
+    "n50": 0,
+    "miss": 2,
+    "combo": 51,
+    "max_combo": 217,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 217,
+    "max_combo": 217,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20023",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 39,
+   "spinners": 4,
+   "cs": 6.0,
+   "ar": 6.9,
+   "od": 3.5,
+   "model": {
+    "acc": 0.9766666666666667,
+    "n300": 97,
+    "n100": 1,
+    "n50": 2,
+    "miss": 0,
+    "combo": 173,
+    "max_combo": 272,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 272,
+    "max_combo": 272,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20024",
+   "kind": "wide",
+   "objects": 102,
+   "sliders": 25,
+   "spinners": 3,
+   "cs": 6.5,
+   "ar": 4.8,
+   "od": 5.5,
+   "model": {
+    "acc": 0.9444444444444444,
+    "n300": 95,
+    "n100": 4,
+    "n50": 0,
+    "miss": 3,
+    "combo": 60,
+    "max_combo": 184,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 102,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 184,
+    "max_combo": 184,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20025",
+   "kind": "wide",
+   "objects": 105,
+   "sliders": 21,
+   "spinners": 2,
+   "cs": 2.6,
+   "ar": 6.1,
+   "od": 4.3,
+   "model": {
+    "acc": 0.9793650793650793,
+    "n300": 102,
+    "n100": 2,
+    "n50": 1,
+    "miss": 0,
+    "combo": 98,
+    "max_combo": 187,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 0.9936507936507937,
+    "n300": 104,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 157,
+    "max_combo": 187,
+    "fc": false
+   }
+  },
+  {
+   "map": "wide_20026",
+   "kind": "wide",
+   "objects": 105,
+   "sliders": 30,
+   "spinners": 2,
+   "cs": 4.9,
+   "ar": 3.4,
+   "od": 8.9,
+   "model": {
+    "acc": 0.9587301587301588,
+    "n300": 100,
+    "n100": 2,
+    "n50": 0,
+    "miss": 3,
+    "combo": 84,
+    "max_combo": 185,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 105,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 185,
+    "max_combo": 185,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20027",
+   "kind": "wide",
+   "objects": 101,
+   "sliders": 28,
+   "spinners": 1,
+   "cs": 4.6,
+   "ar": 4.6,
+   "od": 2.9,
+   "model": {
+    "acc": 0.976897689768977,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 1,
+    "combo": 45,
+    "max_combo": 145,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 145,
+    "max_combo": 145,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20028",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 32,
+   "spinners": 3,
+   "cs": 5.3,
+   "ar": 8.0,
+   "od": 4.7,
+   "model": {
+    "acc": 0.9933333333333333,
+    "n300": 99,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 151,
+    "max_combo": 166,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 166,
+    "max_combo": 166,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20029",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 21,
+   "spinners": 1,
+   "cs": 2.5,
+   "ar": 7.5,
+   "od": 8.4,
+   "model": {
+    "acc": 0.96,
+    "n300": 94,
+    "n100": 6,
+    "n50": 0,
+    "miss": 0,
+    "combo": 117,
+    "max_combo": 148,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 148,
+    "max_combo": 148,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20030",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 34,
+   "spinners": 4,
+   "cs": 4.8,
+   "ar": 8.4,
+   "od": 7.6,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 109,
+    "max_combo": 181,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 181,
+    "max_combo": 181,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20031",
+   "kind": "wide",
+   "objects": 103,
+   "sliders": 23,
+   "spinners": 1,
+   "cs": 5.4,
+   "ar": 8.5,
+   "od": 5.9,
+   "model": {
+    "acc": 0.9870550161812298,
+    "n300": 101,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 167,
+    "max_combo": 221,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 103,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 221,
+    "max_combo": 221,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20032",
+   "kind": "wide",
+   "objects": 103,
+   "sliders": 37,
+   "spinners": 1,
+   "cs": 3.2,
+   "ar": 6.4,
+   "od": 4.8,
+   "model": {
+    "acc": 0.9805825242718447,
+    "n300": 100,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 121,
+    "max_combo": 201,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 103,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 201,
+    "max_combo": 201,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20033",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 30,
+   "spinners": 4,
+   "cs": 3.4,
+   "ar": 4.9,
+   "od": 9.8,
+   "model": {
+    "acc": 0.9466666666666667,
+    "n300": 92,
+    "n100": 8,
+    "n50": 0,
+    "miss": 0,
+    "combo": 103,
+    "max_combo": 151,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 151,
+    "max_combo": 151,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20034",
+   "kind": "wide",
+   "objects": 102,
+   "sliders": 23,
+   "spinners": 7,
+   "cs": 4.3,
+   "ar": 6.4,
+   "od": 3.6,
+   "model": {
+    "acc": 0.9591503267973857,
+    "n300": 96,
+    "n100": 5,
+    "n50": 1,
+    "miss": 0,
+    "combo": 60,
+    "max_combo": 155,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 102,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 155,
+    "max_combo": 155,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20035",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 21,
+   "spinners": 1,
+   "cs": 3.4,
+   "ar": 3.3,
+   "od": 3.0,
+   "model": {
+    "acc": 0.9833333333333333,
+    "n300": 98,
+    "n100": 1,
+    "n50": 0,
+    "miss": 1,
+    "combo": 121,
+    "max_combo": 143,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 143,
+    "max_combo": 143,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20036",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 29,
+   "spinners": 6,
+   "cs": 6.8,
+   "ar": 6.4,
+   "od": 4.9,
+   "model": {
+    "acc": 0.9566666666666667,
+    "n300": 94,
+    "n100": 5,
+    "n50": 0,
+    "miss": 1,
+    "combo": 70,
+    "max_combo": 159,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 159,
+    "max_combo": 159,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20037",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 28,
+   "spinners": 5,
+   "cs": 3.5,
+   "ar": 8.4,
+   "od": 3.1,
+   "model": {
+    "acc": 0.98,
+    "n300": 97,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 159,
+    "max_combo": 176,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 176,
+    "max_combo": 176,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20038",
+   "kind": "wide",
+   "objects": 101,
+   "sliders": 29,
+   "spinners": 1,
+   "cs": 2.6,
+   "ar": 7.2,
+   "od": 9.9,
+   "model": {
+    "acc": 0.8531353135313532,
+    "n300": 79,
+    "n100": 21,
+    "n50": 1,
+    "miss": 0,
+    "combo": 97,
+    "max_combo": 191,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 191,
+    "max_combo": 191,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20039",
+   "kind": "wide",
+   "objects": 101,
+   "sliders": 28,
+   "spinners": 2,
+   "cs": 4.6,
+   "ar": 7.4,
+   "od": 6.8,
+   "model": {
+    "acc": 0.9933993399339934,
+    "n300": 100,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 170,
+    "max_combo": 170,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 170,
+    "max_combo": 170,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20040",
+   "kind": "wide",
+   "objects": 101,
+   "sliders": 25,
+   "spinners": 3,
+   "cs": 4.4,
+   "ar": 3.3,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9933993399339934,
+    "n300": 100,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 80,
+    "max_combo": 161,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 161,
+    "max_combo": 161,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20041",
+   "kind": "wide",
+   "objects": 101,
+   "sliders": 25,
+   "spinners": 4,
+   "cs": 6.3,
+   "ar": 4.3,
+   "od": 6.8,
+   "model": {
+    "acc": 0.9603960396039604,
+    "n300": 96,
+    "n100": 2,
+    "n50": 2,
+    "miss": 1,
+    "combo": 116,
+    "max_combo": 171,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 171,
+    "max_combo": 171,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20042",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 27,
+   "spinners": 4,
+   "cs": 3.2,
+   "ar": 6.9,
+   "od": 8.6,
+   "model": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 163,
+    "max_combo": 163,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 163,
+    "max_combo": 163,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20043",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 38,
+   "spinners": 4,
+   "cs": 4.1,
+   "ar": 4.1,
+   "od": 5.4,
+   "model": {
+    "acc": 0.9833333333333333,
+    "n300": 98,
+    "n100": 1,
+    "n50": 0,
+    "miss": 1,
+    "combo": 99,
+    "max_combo": 162,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 162,
+    "max_combo": 162,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20044",
+   "kind": "wide",
+   "objects": 101,
+   "sliders": 33,
+   "spinners": 3,
+   "cs": 3.2,
+   "ar": 9.0,
+   "od": 8.6,
+   "model": {
+    "acc": 0.9735973597359736,
+    "n300": 97,
+    "n100": 4,
+    "n50": 0,
+    "miss": 0,
+    "combo": 106,
+    "max_combo": 193,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 101,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 193,
+    "max_combo": 193,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20045",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 33,
+   "spinners": 2,
+   "cs": 3.0,
+   "ar": 9.5,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9866666666666667,
+    "n300": 98,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 98,
+    "max_combo": 169,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 169,
+    "max_combo": 169,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20046",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 31,
+   "spinners": 3,
+   "cs": 3.1,
+   "ar": 8.1,
+   "od": 7.2,
+   "model": {
+    "acc": 0.9733333333333334,
+    "n300": 96,
+    "n100": 4,
+    "n50": 0,
+    "miss": 0,
+    "combo": 155,
+    "max_combo": 226,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 226,
+    "max_combo": 226,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20047",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 24,
+   "spinners": 5,
+   "cs": 2.5,
+   "ar": 4.8,
+   "od": 7.2,
+   "model": {
+    "acc": 0.96,
+    "n300": 95,
+    "n100": 3,
+    "n50": 0,
+    "miss": 2,
+    "combo": 74,
+    "max_combo": 157,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 157,
+    "max_combo": 157,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20048",
+   "kind": "wide",
+   "objects": 104,
+   "sliders": 23,
+   "spinners": 3,
+   "cs": 6.3,
+   "ar": 9.7,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9471153846153846,
+    "n300": 97,
+    "n100": 4,
+    "n50": 1,
+    "miss": 2,
+    "combo": 72,
+    "max_combo": 144,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 104,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 144,
+    "max_combo": 144,
+    "fc": true
+   }
+  },
+  {
+   "map": "wide_20049",
+   "kind": "wide",
+   "objects": 100,
+   "sliders": 30,
+   "spinners": 2,
+   "cs": 4.9,
+   "ar": 4.8,
+   "od": 8.9,
+   "model": {
+    "acc": 0.9533333333333334,
+    "n300": 93,
+    "n100": 7,
+    "n50": 0,
+    "miss": 0,
+    "combo": 49,
+    "max_combo": 169,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 100,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 169,
+    "max_combo": 169,
+    "fc": true
+   }
+  }
+ ],
+ "lazer": {
+  "100374": {
+   "acc": 0.9981679146088897,
+   "combo": 514
+  },
+  "103019": {
+   "acc": 0.9483138985187519,
+   "combo": 117
+  },
+  "104973": {
+   "acc": 0.9359057268089387,
+   "combo": 89
+  },
+  "1124896": {
+   "acc": 0.9936012675584265,
+   "combo": 1428
+  },
+  "112643": {
+   "acc": 0.9883748101413716,
+   "combo": 201
+  },
+  "1341554": {
+   "acc": 0.9404049044767607,
+   "combo": 351
+  },
+  "1431386": {
+   "acc": 0.9419405940594059,
+   "combo": 206
+  },
+  "1450162": {
+   "acc": 0.9577547658272535,
+   "combo": 403
+  },
+  "1597806": {
+   "acc": 0.9668463611859839,
+   "combo": 152
+  },
+  "20544": {
+   "acc": 0.8951689295863593,
+   "combo": 49
+  },
+  "2190499": {
+   "acc": 0.9621476510067114,
+   "combo": 1322
+  },
+  "2593923": {
+   "acc": 0.9867473017159061,
+   "combo": 1382
+  },
+  "2768615": {
+   "acc": 0.6855015330705212,
+   "combo": 16
+  },
+  "3227428": {
+   "acc": 0.8966244725738397,
+   "combo": 39
+  },
+  "3644427": {
+   "acc": 0.9230229293401966,
+   "combo": 291
+  },
+  "37902": {
+   "acc": 0.9420849420849421,
+   "combo": 159
+  },
+  "39206": {
+   "acc": 0.9687123140828086,
+   "combo": 162
+  },
+  "42587": {
+   "acc": 0.9900221729490022,
+   "combo": 195
+  },
+  "50859": {
+   "acc": 0.9815338994473649,
+   "combo": 141
+  },
+  "75858": {
+   "acc": 0.9840930232558139,
+   "combo": 251
+  },
+  "801165": {
+   "acc": 0.9600390053632375,
+   "combo": 777
+  },
+  "871815": {
+   "acc": 0.9879160966712266,
+   "combo": 163
+  },
+  "bakenohana": {
+   "acc": 0.9495273193398494,
+   "combo": 547
+  },
+  "renatus_hard": {
+   "acc": 0.9214906700593724,
+   "combo": 291
+  },
+  "renatus_insane": {
+   "acc": 0.9827441077441077,
+   "combo": 485
+  },
+  "renatus_normal": {
+   "acc": 0.968993779006616,
+   "combo": 193
+  }
+ },
+ "lazer_agreement": [
+  27395,
+  27409
+ ],
+ "lazer_mismatches": [
+  [
+   "112643",
+   "Slider",
+   "171",
+   "100",
+   "Great"
+  ],
+  [
+   "112643",
+   "Slider",
+   "495",
+   "100",
+   "Great"
+  ],
+  [
+   "112643",
+   "tick",
+   "61125.0",
+   "False",
+   "True"
+  ],
+  [
+   "112643",
+   "tick",
+   "179125.0",
+   "False",
+   "True"
+  ],
+  [
+   "112643",
+   "max_combo",
+   "160",
+   "201"
+  ],
+  [
+   "2190499",
+   "Slider",
+   "227",
+   "100",
+   "Great"
+  ],
+  [
+   "2190499",
+   "tail",
+   "89054.9",
+   "False",
+   "True"
+  ],
+  [
+   "2768615",
+   "Slider",
+   "26",
+   "100",
+   "Great"
+  ],
+  [
+   "2768615",
+   "tail",
+   "10240.7",
+   "False",
+   "True"
+  ],
+  [
+   "39206",
+   "spins",
+   "128",
+   "4",
+   "3"
+  ],
+  [
+   "39206",
+   "spins",
+   "224",
+   "4",
+   "3"
+  ],
+  [
+   "39206",
+   "spins",
+   "228",
+   "4",
+   "3"
+  ],
+  [
+   "bakenohana",
+   "Slider",
+   "465",
+   "100",
+   "Great"
+  ],
+  [
+   "bakenohana",
+   "tick",
+   "103423.7",
+   "False",
+   "True"
+  ]
+ ]
+}
