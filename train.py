@@ -10,6 +10,7 @@ from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
 import numpy as np
+import torch
 
 import env as env_mod
 from beatmap import parse_osu, random_beatmap
@@ -54,6 +55,7 @@ if __name__ == "__main__":
     p.add_argument("--eval-map", default="maps/bakenohana.osu")
     p.add_argument("--name", default="")
     args = p.parse_args()
+    torch.set_num_threads(4)  # the default (all cores) fights the env worker processes: 4 was fastest on i7-13620H with 8 envs
 
     run_dir = os.path.join("runs", time.strftime("%Y%m%d-%H%M") + (f"-{args.name}" if args.name else ""))
     hparams = dict(n_steps=1024, batch_size=2048, gamma=args.gamma, policy_kwargs=dict(net_arch=[256, 256]))

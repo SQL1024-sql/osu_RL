@@ -1,3 +1,5 @@
+import math
+
 import gymnasium as gym
 import numpy as np
 
@@ -13,6 +15,7 @@ CLICK_PENALTY = -0.05
 SHAPING = 1.0
 CURSOR_MARGIN = 100  # the real cursor can leave the playfield, and slider paths sometimes do
 LOOKAHEAD_MS = (50, 150)  # extra slider ball positions in observation (besides next step)
+CURSOR_MAX = PLAYFIELD + CURSOR_MARGIN
 
 
 class OsuEnv(gym.Env):
@@ -30,6 +33,8 @@ class OsuEnv(gym.Env):
         bm = self.fixed or random_beatmap(self.np_random, self.segment)
         self.bm, self.objs, self.kinds, self.ends = bm, bm.objects, bm.kinds, bm.ends
         self.r, self.preempt, self.w = bm.radius, bm.preempt, bm.windows
+        self.ox, self.oy, self.ot = (bm.objects[:, k].tolist() for k in range(3))  # plain floats for the per-step loops
+        self.kl = bm.kinds.tolist()
         n = len(self.objs)
         self.clock = max(0.0, self.objs[0, 2] - self.preempt)
         self.t = self.prev_t = float(round(self.clock))  # replay frames store whole ms, so the game sees these times
@@ -54,10 +59,10 @@ class OsuEnv(gym.Env):
         return any(self.keys)
 
     def step(self, action):
-        a = np.clip(action, -1, 1)
+        a = np.minimum(np.maximum(action, -1.0), 1.0)  # np.clip, minus its per-call overhead
         prev_d = self._target_dist()
         self.prev_cursor = self.cursor
-        self.cursor = np.clip(self.cursor + a[:2] * self.max_speed, -CURSOR_MARGIN, PLAYFIELD + CURSOR_MARGIN)
+        self.cursor = np.minimum(np.maximum(self.cursor + a[:2] * self.max_speed, -CURSOR_MARGIN), CURSOR_MAX)
         keys = (bool(a[2] > 0), bool(a[3] > 0))
         presses = [k for k in (0, 1) if keys[k] and not self.keys[k]]
         self.prev_keys, self.keys = self.keys, keys
@@ -92,9 +97,9 @@ class OsuEnv(gym.Env):
         for s in self.spinning:
             times |= {s["sp"].start, s["sp"].end, self.t - 1}  # t - 1: spin under the previous frame's keys
         i = self.next
-        while i < len(self.objs) and self.objs[i, 2] + self.w[2] < self.t:
+        while i < len(self.ot) and self.ot[i] + self.w[2] < self.t:
             if not self.started[i]:
-                late = np.floor(self.objs[i, 2] + self.w[2]) + 1  # first ms past the 50 window: late miss
+                late = math.floor(self.ot[i] + self.w[2]) + 1  # first ms past the 50 window: late miss
                 times |= {late, late + 1}  # + 1: a timed-out slider head's nested objects are judged on the next update
             i += 1
         return [(c, True) for c in sorted({float(np.ceil(t)) for t in times if self.prev_t < t and np.ceil(t) < self.t})]
@@ -105,8 +110,8 @@ class OsuEnv(gym.Env):
         self._track_unstarted()
         reward = 0.0
         i = self.next
-        while i < len(self.objs) and self.t > self.objs[i, 2] + self.w[2]:
-            if not self.started[i] and self.kinds[i] != SPINNER:
+        while i < len(self.ot) and self.t > self.ot[i] + self.w[2]:
+            if not self.started[i] and self.kl[i] != SPINNER:
                 reward += self._hit(i, None, None)
             i += 1
         reward += self._update_sliders() + self._update_spinners()
@@ -120,10 +125,10 @@ class OsuEnv(gym.Env):
     def _press(self, key):
         """lazer LegacyHitPolicy (classic note lock): the earliest object under the cursor takes the click."""
         for j in range(self.next, len(self.objs)):
-            x, y, t = self.objs[j]
+            x, y, t = self.ox[j], self.oy[j], self.ot[j]
             if t - self.preempt > self.t:
                 break
-            if self.started[j] or self.kinds[j] == SPINNER or np.hypot(self.cursor[0] - x, self.cursor[1] - y) > self.r:
+            if self.started[j] or self.kl[j] == SPINNER or math.hypot(self.cursor[0] - x, self.cursor[1] - y) > self.r:
                 continue
             if j > 0 and self.bm.stack[j - 1] > 0 and not self.done[j - 1]:
                 continue  # ClickAction.Ignore: the click passes to the next object under the cursor
@@ -198,8 +203,8 @@ class OsuEnv(gym.Env):
     def _track_unstarted(self):
         """lazer SliderInputManager tracks from the moment a slider is alive, before its head is judged (any key counts)."""
         i = self.next
-        while i < len(self.objs) and self.objs[i, 2] - self.preempt <= self.t:
-            if self.kinds[i] == SLIDER and not self.started[i]:
+        while i < len(self.ot) and self.ot[i] - self.preempt <= self.t:
+            if self.kl[i] == SLIDER and not self.started[i]:
                 radius = self.r * (FOLLOW_AREA if self.pre_tracking.get(i) else 1)
                 self.pre_tracking[i] = any(self.keys) and np.hypot(*(self.cursor - self.bm.sliders[i].ball(self.t))) <= radius
             i += 1
@@ -230,8 +235,8 @@ class OsuEnv(gym.Env):
 
     def _start_spinners(self):
         i = self.next
-        while i < len(self.objs) and self.objs[i, 2] <= self.t:
-            if self.kinds[i] == SPINNER and not self.started[i]:
+        while i < len(self.ot) and self.ot[i] <= self.t:
+            if self.kl[i] == SPINNER and not self.started[i]:
                 self.started[i] = True
                 self.spinning.append(dict(idx=i, sp=self.bm.spinners[i], acc=0.0, acc_at_last=0.0, completed=0, cur_max=0.0, ticks=0))
             i += 1
@@ -283,23 +288,30 @@ class OsuEnv(gym.Env):
         return 1.0 if req == 0 else min(1.0, self._total_rotation(s) / 360 / req)
 
     def _visible(self, i):
-        return i < len(self.objs) and self.objs[i, 2] - self.t <= self.preempt
+        return i < len(self.ot) and self.ot[i] - self.t <= self.preempt
 
     def _target_dist(self):
+        c = self.cursor
         if self.active:
-            return float(np.hypot(*(self.active[0]["sl"].ball(self.t) - self.cursor)))
-        if self.spinning or not self._visible(self.next) or self.kinds[self.next] == SPINNER:
+            b = self.active[0]["sl"].ball(self.t)
+            return math.hypot(b[0] - c[0], b[1] - c[1])
+        if self.spinning or not self._visible(self.next) or self.kl[self.next] == SPINNER:
             return 0.0
-        return float(np.hypot(*(self.objs[self.next, :2] - self.cursor)))
+        return math.hypot(self.ox[self.next] - c[0], self.oy[self.next] - c[1])
 
     def _obs(self):
         o = [*(self.cursor / PLAYFIELD), *map(float, self.keys), self.r / 64, self.w[2] / 200]
-        upcoming = [i for i in range(self.next, len(self.objs)) if not self.started[i]][:K]
+        upcoming = []
+        for i in range(self.next, len(self.objs)):
+            if len(upcoming) == K:
+                break
+            if not self.started[i]:
+                upcoming.append(i)
         for i in upcoming:
             if self._visible(i):
-                x, y, t = self.objs[i]
+                x, y, t, kind = self.ox[i], self.oy[i], self.ot[i], self.kl[i]
                 o += [(x - self.cursor[0]) / 256, (y - self.cursor[1]) / 256, (t - self.t) / 200, 1.0,
-                      float(self.kinds[i] == SLIDER), float(self.kinds[i] == SPINNER)]
+                      float(kind == SLIDER), float(kind == SPINNER)]
             else:
                 o += [0.0] * 6
         o += [0.0] * 6 * (K - len(upcoming))

@@ -1,4 +1,6 @@
-from dataclasses import dataclass, field
+import math
+from bisect import bisect_right
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
@@ -19,19 +21,29 @@ class Slider:
     cum: np.ndarray  # (M,) cumulative length along path
     nested: list  # [(time, kind)] kind: "tick" / "repeat" / "tail", time-ordered
 
-    @property
-    def end(self):
-        return self.start + self.spans * self.span_duration
+    def __post_init__(self):
+        # plain-float copies: ball() runs every step and numpy's per-call overhead dominates on tiny inputs
+        self.end = self.start + self.spans * self.span_duration
+        self._cum, self._xs, self._ys = self.cum.tolist(), self.path[:, 0].tolist(), self.path[:, 1].tolist()
 
     def ball(self, t):
         """Slider ball position at time t (lazer CurvePositionAt with time progress)."""
         if self.end <= self.start:
             return self.path[0].copy()
-        p = np.clip((t - self.start) / (self.end - self.start), 0, 1) * self.spans
+        p = min(max((t - self.start) / (self.end - self.start), 0.0), 1.0) * self.spans
         span = min(int(p), self.spans - 1)
         f = p - span
-        d = (1 - f if span % 2 else f) * self.cum[-1]
-        return np.array([np.interp(d, self.cum, self.path[:, 0]), np.interp(d, self.cum, self.path[:, 1])])
+        cum = self._cum
+        d = (1 - f if span % 2 else f) * cum[-1]
+        # same arithmetic as np.interp
+        j = bisect_right(cum, d) - 1
+        if j < 0:
+            return np.array([self._xs[0], self._ys[0]])
+        if j >= len(cum) - 1:
+            return np.array([self._xs[-1], self._ys[-1]])
+        u = d - cum[j]
+        w = cum[j + 1] - cum[j]
+        return np.array([(self._xs[j + 1] - self._xs[j]) / w * u + self._xs[j], (self._ys[j + 1] - self._ys[j]) / w * u + self._ys[j]])
 
 
 @dataclass
@@ -113,24 +125,26 @@ def _arc(a, b, c):
 
 def _catmull(pts):
     """PathApproximator.CatmullToPiecewiseLinear + lazer OptimiseCatmull. Returns (points, extra length)."""
+    t = np.repeat(np.arange(51) / 50, 2)[1:-1, None]  # (c / 50, (c + 1) / 50) for c in 0..49
     out = []
     for i in range(len(pts)):
         v1 = pts[i - 1] if i > 0 else pts[i]
         v2 = pts[i]
         v3 = pts[i + 1] if i < len(pts) - 1 else 2 * v2 - v1
         v4 = pts[i + 2] if i < len(pts) - 2 else 2 * v3 - v2
-        for c in range(50):
-            for t in (c / 50, (c + 1) / 50):
-                out.append(0.5 * (2 * v2 + (-v1 + v3) * t + (2 * v1 - 5 * v2 + 4 * v3 - v4) * t * t + (-v1 + 3 * v2 - 3 * v3 + v4) * t ** 3))
+        out.append(0.5 * (2 * v2 + (-v1 + v3) * t + (2 * v1 - 5 * v2 + 4 * v3 - v4) * t * t + (-v1 + 3 * v2 - 3 * v3 + v4) * t ** 3))
+    out = np.concatenate(out)
+    step = np.hypot(*np.diff(out, axis=0).T).tolist()  # step[i - 1] = |out[i] - out[i - 1]|
+    pl = out.tolist()
     opt, extra, last, removed = [], 0.0, None, 0.0
-    for i, p in enumerate(out):
+    for i, p in enumerate(pl):
         if last is None:
             opt.append(p)
             last = p
             continue
-        dist = np.hypot(*(p - last))
-        removed += np.hypot(*(p - out[i - 1]))
-        if dist > 6 or (i + 1) % 100 == 0 or i == len(out) - 1:
+        dist = math.hypot(p[0] - last[0], p[1] - last[1])
+        removed += step[i - 1]
+        if dist > 6 or (i + 1) % 100 == 0 or i == len(pl) - 1:
             opt.append(p)
             extra += removed - dist
             last, removed = None, 0.0
@@ -347,7 +361,7 @@ def parse_lines(lines):
             off = sh * (r / 64) * -6.4  # lazer OsuHitObject.StackOffset
             objs[i, :2] += off
             if i in sliders:
-                sliders[i].path = sliders[i].path + off
+                sliders[i] = replace(sliders[i], path=sliders[i].path + off)
     return Beatmap(cs, ar, od, objs, np.array(kinds), np.array(ends), np.array(h), sliders, spinners,
                    f"{kv.get('Title', '?')} [{kv.get('Version', '?')}]")
 
