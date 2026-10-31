@@ -6,19 +6,26 @@
 
 ## 結果
 
-模型完全只用隨機生成的譜訓練，下面的真實譜一張都沒看過。最佳 checkpoint 用另外的驗證集挑選，詳見 [results](results/20261031-1933-timing120/results.md)。
+模型完全只用隨機生成的譜訓練，下面的真實譜一張都沒看過。最佳 checkpoint 用另外的驗證集挑選，詳見 [results](results/20261031-2246-spinpress120/results.md)。
 
 | 測試集 | acc（平均 / 中位數） | FC | 平均 miss | autoplay |
 |---|---|---|---|---|
-| 26 張真實 ranked 譜（CS 3–9、AR 2–9.6、OD 2–9.2） | **97.8% / 99.0%** | **3 / 26** | 2.4 | 100% |
-| 50 張沒看過的隨機譜 | 94.2% / 94.5% | — | 3.1 | 99.96% |
+| 26 張真實 ranked 譜（CS 3–9、AR 2–9.6、OD 2–9.2） | **98.3% / 99.5%** | **10 / 26** | 1.6 | 100% |
+| 60 張 HF 測試譜（另一批沒看過的 ranked 譜） | **99.3% / 99.7%** | 21 / 60 | 0.3 | 99.99% |
+| 50 張沒看過的隨機譜 | 98.6% / 98.9% | 19 / 50 | 0.3 | 99.96% |
 
-- **FC**：
-  - 801165：1612 物件，combo 2359 / 2359，99.63%
-  - 2593923：OD8.7，1429 / 1429
-  - 1341554：877 / 877，99.26%
-- 26 張真實譜的模型 replay 在 [results/…/replays/](results/20261031-1933-timing120/replays) 裡，都經過 osu!lazer 重新判定，**27407 / 27409（99.99%）個判定和模擬器完全一致**
-- 目前最大的弱點是 **spinner**：真實譜 63 個 miss 裡有 59 個是 spinner，模型還不會轉。除了 spinner 和一張 CS9 的譜之外，其他物件一個都沒 miss
+- **4 張 SS（100%）**：1450162、871815、renatus_hard、renatus_normal
+- **其他 FC**：
+  - BAKENOHANA（OD9.2）：99.41%
+  - 801165：1612 物件，combo 2359 / 2359，99.83%
+  - 2593923（OD8.7）：99.88%
+  - renatus_insane：99.93%
+  - 1597806（CS7）、20544（AR2）
+- 26 張真實譜的模型 replay 在 [results/…/replays/](results/20261031-2246-spinpress120/replays) 裡，都經過 osu!lazer 重新判定，**27397 / 27409（99.96%）個判定和模擬器完全一致**
+- 剩下的弱點：
+  - CS9 的譜（超出訓練範圍）
+  - 低 AR 譜的 slider 頭偶爾沒點到，會斷 combo
+  - spinner：59 個裡還有 11 個 miss
 
 ### 研究過程（完整紀錄在 [RESEARCH.md](RESEARCH.md)）
 
@@ -27,14 +34,17 @@
 | Exp 006 | 所有機制（slider、spinner、stacking、雙鍵、note lock），難度範圍 CS 3–5.5 / AR 7–10 / OD 5–9 | 93.2% |
 | Exp 007 | 難度範圍擴大到 CS 2–7 / AR 3–10 / OD 2–10 | 97.2% |
 | Exp 008 | 32 env 加速：快 1.6 倍，但學習變差，假設不成立 | 95.6% |
-| Exp 009 | 加上連續時機獎勵（越接近完美時間獎勵越多） | **97.8%，3 FC** |
+| Exp 009 | 加上連續時機獎勵（越接近完美時間獎勵越多） | 97.8%，3 FC |
+| Exp 010 | spinner 期間的距離 shaping：游標會回中心，但不按鍵，假設不成立 | 97.2% |
+| Exp 011 | spinner 期間按鍵不算空點、不扣分 | **98.3%，10 FC** |
 
-每一步都是一個先寫下來的假設：
+每一步都是一個先寫下來的假設，再用實驗驗證：
 - Exp 006 失分幾乎都來自訓練範圍外的難度，所以 Exp 007 擴大範圍。範圍外的真實譜從 86.6% 升到 96.6%，代價是時機變鬆、100 變多
 - Exp 009 用時機獎勵補回這個缺點，100 少了一半以上，第一次出現 FC
-- 錯誤分析發現剩下的 miss 幾乎都是 spinner，這是下一個要驗證的假設
+- 錯誤分析發現剩下 94% 的 miss 是 spinner，模型完全不會轉
+- 診斷出兩個獎勵缺口：spinner 期間沒有距離 shaping，而且按鍵被當成空點扣分。Exp 010 補了第一個，Exp 011 補了第二個，spinner 從 0 / 59 變成 48 / 59 沒 miss
 
-![training curves](results/20261031-1933-timing120/curves.png)
+![training curves](results/20261031-2246-spinpress120/curves.png)
 
 ## 這個專案在做什麼
 
@@ -96,7 +106,7 @@ python test_env.py
 用訓練好的模型打一張譜，輸出 replay（`--hz` 要和訓練時相同）：
 
 ```bash
-python play.py path/to/map.osu --model results/20261031-1933-timing120/best_model.zip --hz 120 --out replay.osr
+python play.py path/to/map.osu --model results/20261031-2246-spinpress120/best_model.zip --hz 120 --out replay.osr
 ```
 
 `.osr` 可以直接拖進 osu! 觀看（譜面要先在遊戲裡）。
@@ -104,7 +114,7 @@ python play.py path/to/map.osu --model results/20261031-1933-timing120/best_mode
 訓練（20M 步約 1.5 小時，8 核 CPU）：
 
 ```bash
-python train.py --steps 20e6 --hz 120 --gamma 0.995 --diff wide --timing 0.3 --name timing120 --eval-map maps/test/renatus_insane.osu
+python train.py --steps 20e6 --hz 120 --gamma 0.995 --diff wide --timing 0.3 --spin-shaping --spin-free-press --name spinpress120 --eval-map maps/test/renatus_insane.osu
 ```
 
 評估與 lazer 驗證都需要 ppy/osu 的 clone 和 .NET 10 SDK：
