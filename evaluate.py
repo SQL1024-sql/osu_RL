@@ -21,7 +21,7 @@ from stable_baselines3 import PPO
 from beatmap import SLIDER, SPINNER, parse_osu, random_beatmap
 from env import OsuEnv
 from play import oracle, run
-from train import VAL_SEEDS
+from train import val_maps
 from verify import verify
 
 TEST_SEEDS = range(20_000, 20_050)
@@ -66,14 +66,16 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(out, "replays"), exist_ok=True)
 
     # 1. checkpoint selection on validation maps, drawn like the run's training maps
-    diff = json.load(open(os.path.join(args.run_dir, "config.json")))["args"].get("diff", "narrow")
-    val_maps = [random_beatmap(np.random.default_rng(s), n=100, diff=diff) for s in VAL_SEEDS]
+    run_args = json.load(open(os.path.join(args.run_dir, "config.json")))["args"]
+    diff = run_args.get("diff", "narrow")
+    vmaps = val_maps(diff, run_args.get("pool"))
     ckpts = sorted(glob.glob(os.path.join(args.run_dir, "ckpt", "*.zip")), key=lambda f: int(re.findall(r"(\d+)_steps", f)[0]))
-    ckpts.append(os.path.join(args.run_dir, "model.zip"))
+    if os.path.exists(os.path.join(args.run_dir, "model.zip")):  # missing when a run was stopped early
+        ckpts.append(os.path.join(args.run_dir, "model.zip"))
     val = []
     for c in ckpts:
         model = PPO.load(c, device="cpu")
-        r = [play(bm, model_policy(model), args.hz) for bm in val_maps]
+        r = [play(bm, model_policy(model), args.hz) for bm in vmaps]
         steps = re.findall(r"(\d+)_steps", c)
         val.append(dict(ckpt=os.path.basename(c), steps=int(steps[0]) if steps else -1,
                         acc=float(np.mean([x["acc"] for x in r])), miss=sum(x["miss"] for x in r)))

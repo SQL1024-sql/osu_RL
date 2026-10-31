@@ -446,5 +446,13 @@ def random_osu(rng, n=40, diff="narrow"):
             f"SliderMultiplier:{sm}", f"SliderTickRate:{tick_rate}", "", "[TimingPoints]", *timing, "", "[HitObjects]", *objs]
 
 
+def window(bm, start, n):
+    """Objects start .. start + n of a map as a map of their own (stacking was already applied on the full map)."""
+    keep = range(start, min(start + n, len(bm.objects)))
+    return replace(bm, objects=bm.objects[keep.start:keep.stop], kinds=bm.kinds[keep.start:keep.stop], ends=bm.ends[keep.start:keep.stop],
+                   stack=bm.stack[keep.start:keep.stop], sliders={i - start: bm.sliders[i] for i in keep if i in bm.sliders},
+                   spinners={i - start: bm.spinners[i] for i in keep if i in bm.spinners})
+
+
 def random_beatmap(rng, n=40, diff="narrow"):
     return parse_lines(random_osu(rng, n, diff))

@@ -3,7 +3,7 @@ import math
 import gymnasium as gym
 import numpy as np
 
-from beatmap import FOLLOW_AREA, PLAYFIELD, SLIDER, SPINNER, TAIL_LENIENCY, random_beatmap
+from beatmap import FOLLOW_AREA, PLAYFIELD, SLIDER, SPINNER, TAIL_LENIENCY, parse_osu, random_beatmap, window
 
 MAX_CURSOR_SPEED = 4.8  # osu px per ms
 K = 3  # upcoming objects in observation
@@ -21,11 +21,13 @@ CURSOR_MAX = PLAYFIELD + CURSOR_MARGIN
 
 
 class OsuEnv(gym.Env):
-    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0, spin_shaping=False):
+    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0, spin_shaping=False, spin_free_press=False, pool=(), pool_frac=0.0):
         self.fixed = beatmap
         self.diff = diff  # difficulty range of the random training maps, see beatmap.DIFF
         self.timing = timing  # max bonus for a centred circle hit, see TIMING_MS
         self.spin_shaping = spin_shaping  # distance shaping during spinners too, see SPIN_RADIUS
+        self.spin_free_press = spin_free_press  # no empty-click penalty while a spinner runs (holding a key spins it)
+        self.pool, self.pool_frac = list(pool), pool_frac  # .osu paths; this share of episodes is a window of a real map
         self.segment = segment
         self.dt = 1000 / hz
         self.max_speed = MAX_CURSOR_SPEED * self.dt  # osu px per step
@@ -35,7 +37,7 @@ class OsuEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        bm = self.fixed or random_beatmap(self.np_random, self.segment, self.diff)
+        bm = self.fixed or self._real_window() or random_beatmap(self.np_random, self.segment, self.diff)
         self.bm, self.objs, self.kinds, self.ends = bm, bm.objects, bm.kinds, bm.ends
         self.r, self.preempt, self.w = bm.radius, bm.preempt, bm.windows
         self.ox, self.oy, self.ot = (bm.objects[:, k].tolist() for k in range(3))  # plain floats for the per-step loops
@@ -58,6 +60,12 @@ class OsuEnv(gym.Env):
         self.extra_frames = []  # (time, x, y, keys) in-between updates the replay must contain, see _update_sliders
         self.combo = self.max_combo = 0
         return self._obs(), {}
+
+    def _real_window(self):
+        if not self.pool or self.np_random.random() >= self.pool_frac:
+            return None
+        bm = parse_osu(self.pool[self.np_random.integers(len(self.pool))])  # parsing per episode costs ~2% of training time
+        return window(bm, int(self.np_random.integers(max(1, len(bm.objects) - self.segment + 1))), self.segment)
 
     @property
     def held(self):
@@ -143,7 +151,7 @@ class OsuEnv(gym.Env):
             if any(not self.done[i] and self.ends[i] + 3 < t for i in range(self.first_open, j)):
                 return CLICK_PENALTY  # shake: an earlier object must be judged first
             return self._hit(j, err, key)
-        return CLICK_PENALTY
+        return 0.0 if self.spin_free_press and self.spinning else CLICK_PENALTY
 
     def _hit(self, i, err, key):
         """Judge a circle / slider head; err=None means it timed out."""
