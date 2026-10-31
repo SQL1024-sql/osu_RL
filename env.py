@@ -12,6 +12,7 @@ REWARD = {300: 1.0, 100: 0.4, 50: 0.1, 0: -1.0}
 NESTED_REWARD = {True: 0.1, False: -0.3}  # slider head / tick / repeat / tail
 SPIN_REWARD = 0.5  # spread over the spins required to clear a spinner
 CLICK_PENALTY = -0.05
+SPIN_RADIUS = 50  # spinner shaping pulls the cursor onto this ring around the centre (autoplay spins there)
 TIMING_MS = 25  # circle timing bonus fades to 0 at this error, whatever the map's OD (about OD9's 300 window)
 SHAPING = 1.0
 CURSOR_MARGIN = 100  # the real cursor can leave the playfield, and slider paths sometimes do
@@ -20,10 +21,11 @@ CURSOR_MAX = PLAYFIELD + CURSOR_MARGIN
 
 
 class OsuEnv(gym.Env):
-    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0):
+    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0, spin_shaping=False):
         self.fixed = beatmap
         self.diff = diff  # difficulty range of the random training maps, see beatmap.DIFF
         self.timing = timing  # max bonus for a centred circle hit, see TIMING_MS
+        self.spin_shaping = spin_shaping  # distance shaping during spinners too, see SPIN_RADIUS
         self.segment = segment
         self.dt = 1000 / hz
         self.max_speed = MAX_CURSOR_SPEED * self.dt  # osu px per step
@@ -299,6 +301,9 @@ class OsuEnv(gym.Env):
         if self.active:
             b = self.active[0]["sl"].ball(self.t)
             return math.hypot(b[0] - c[0], b[1] - c[1])
+        if self.spinning and self.spin_shaping:
+            i = self.spinning[0]["idx"]
+            return abs(math.hypot(self.ox[i] - c[0], self.oy[i] - c[1]) - SPIN_RADIUS)
         if self.spinning or not self._visible(self.next) or self.kl[self.next] == SPINNER:
             return 0.0
         return math.hypot(self.ox[self.next] - c[0], self.oy[self.next] - c[1])

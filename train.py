@@ -57,6 +57,7 @@ if __name__ == "__main__":
     p.add_argument("--eval-map", default="maps/bakenohana.osu")
     p.add_argument("--name", default="")
     p.add_argument("--timing", type=float, default=0.0, help="max timing bonus per circle hit (env.TIMING_MS)")
+    p.add_argument("--spin-shaping", action="store_true", help="distance shaping toward the spinner ring (env.SPIN_RADIUS)")
     p.add_argument("--diff", default="narrow", choices=["narrow", "wide"], help="CS / AR / OD range of training maps")
     args = p.parse_args()
     torch.set_num_threads(4)  # the default (all cores) fights the env worker processes: 4 was fastest on i7-13620H with 8 envs
@@ -66,11 +67,11 @@ if __name__ == "__main__":
                     batch_size=2048, gamma=args.gamma, policy_kwargs=dict(net_arch=[256, 256]))
     os.makedirs(run_dir)
     with open(os.path.join(run_dir, "config.json"), "w") as f:
-        consts = {k: getattr(env_mod, k) for k in ("MAX_CURSOR_SPEED", "K", "MISS_WINDOW", "REWARD", "NESTED_REWARD", "SPIN_REWARD", "CLICK_PENALTY", "SHAPING", "CURSOR_MARGIN", "LOOKAHEAD_MS", "TIMING_MS")}
+        consts = {k: getattr(env_mod, k) for k in ("MAX_CURSOR_SPEED", "K", "MISS_WINDOW", "REWARD", "NESTED_REWARD", "SPIN_REWARD", "CLICK_PENALTY", "SHAPING", "CURSOR_MARGIN", "LOOKAHEAD_MS", "TIMING_MS", "SPIN_RADIUS")}
         json.dump(dict(args=vars(args), ppo=hparams, env=consts), f, indent=2, default=str)
 
     vec = dict(vec_env_cls=GroupedSubprocVecEnv, vec_env_kwargs=dict(workers=args.workers)) if args.workers else dict(vec_env_cls=SubprocVecEnv)
-    env = make_vec_env(OsuEnv, n_envs=args.envs, seed=args.seed, env_kwargs=dict(hz=args.hz, diff=args.diff, timing=args.timing), **vec)
+    env = make_vec_env(OsuEnv, n_envs=args.envs, seed=args.seed, env_kwargs=dict(hz=args.hz, diff=args.diff, timing=args.timing, spin_shaping=args.spin_shaping), **vec)
     # small MLP: CPU is faster than GPU here
     model = PPO("MlpPolicy", env, verbose=1, device="cpu", seed=args.seed, **hparams)
     model.set_logger(configure(run_dir, ["stdout", "csv"]))
