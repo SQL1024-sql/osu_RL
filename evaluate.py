@@ -13,6 +13,7 @@ import json
 import os
 import re
 import shutil
+import sys
 
 import numpy as np
 from stable_baselines3 import PPO
@@ -59,6 +60,7 @@ if __name__ == "__main__":
     p.add_argument("--maps", default="maps/test/*.osu", help="glob of real test maps")
     p.add_argument("--random", type=int, default=len(TEST_SEEDS), help="number of random test maps")
     args = p.parse_args()
+    sys.stdout.reconfigure(line_buffering=True)  # dashboard.py follows the log while it runs
     name = os.path.basename(os.path.normpath(args.run_dir))
     out = os.path.join("results", name)
     os.makedirs(os.path.join(out, "replays"), exist_ok=True)
@@ -96,8 +98,10 @@ if __name__ == "__main__":
         test.append(dict(map=f"{kind}_{s}", kind=kind, objects=len(bm.objects), sliders=len(bm.sliders),
                          spinners=len(bm.spinners), cs=bm.cs, ar=bm.ar, od=bm.od,
                          model=play(bm, model_policy(model), args.hz), autoplay=play(bm, lambda e: (lambda ob: oracle(e)), args.hz)))
+        print(f"random {test[-1]['map']}: model {pct(test[-1]['model']['acc'])} | autoplay {pct(test[-1]['autoplay']['acc'])}")
 
     # 3. lazer re-judges the real-map plays; replays are kept
+    print("lazer: re-judging the real-map replays")
     agree, diffs, summary = verify([(os.path.splitext(os.path.basename(p))[0], p, model_policy(model)) for p in real],
                                    args.hz, os.path.join(out, "replays", "model"))
     lazer = {n: dict(acc=float(h["accuracy"]), combo=int(h["max_combo"])) for n, _, _, h in summary}

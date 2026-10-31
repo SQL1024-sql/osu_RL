@@ -25,6 +25,27 @@ def fmt_time(s):
     return f"{s // 3600}h{s // 60 % 60:02d}m" if s >= 3600 else f"{s // 60}m{s % 60:02d}s"
 
 
+def eval_section(run_dir, eval_log):
+    """Progress of evaluate.py, read from the lines it prints per checkpoint / map."""
+    lines = open(eval_log, encoding="utf-8", errors="replace").read().splitlines()
+    count = lambda prefix: sum(l.startswith(prefix) for l in lines)
+    lazer = count("lazer:")
+    phases = [("1. pick checkpoint (validation maps)", count("val "), len(glob.glob(os.path.join(run_dir, "ckpt", "*.zip"))) + 1),
+              ("2. real maps, model + autoplay", count("test "), len(glob.glob("maps/test/*.osu"))),
+              ("3. random maps (narrow + wide)", count("random "), 100),
+              ("4. osu!lazer re-judges the replays", lazer, 1)]
+    rows = ""
+    for n, done, total in phases:
+        shown = "running" if n.startswith("4") and done else f"{done}/{total}"  # lazer prints nothing until it finishes
+        width = 50 if shown == "running" else min(1, done / total) * 100
+        rows += (f"<tr><td style=text-align:left>{n}</td><td>{shown}</td>"
+                 f"<td style='width:200px'><div class=bar><div style='width:{width:.0f}%'></div></div></td></tr>")
+    best = next((l for l in lines if l.startswith("best:")), "")
+    tail = "\n".join(l[:160] for l in lines[-6:])
+    return (f"<p><b>evaluation</b></p><table><tr><th>phase</th><th>done</th><th>progress</th></tr>{rows}</table>"
+            + (f"<p>{html.escape(best)}</p>" if best else "") + f"<pre>{html.escape(tail)}</pre>")
+
+
 def run_section(run_dir):
     name = os.path.basename(run_dir)
     rows = list(csv.DictReader(open(os.path.join(run_dir, "progress.csv"))))
@@ -64,6 +85,8 @@ def run_section(run_dir):
             f"<tr><td>{float(r['time/total_timesteps']) / 1e6:.2f}M</td><td>{float(r['val/acc']) * 100:.2f}%</td>"
             f"<td>{float(r['val/miss']):.0f}</td><td>{float(r['eval/acc']) * 100:.2f}%</td>"
             + (f"<td>{per_step[id(r)]:.0f}</td></tr>" if id(r) in per_step else "<td>—</td></tr>") for r in val[-8:][::-1]) + "</table>")
+    if state == "evaluating":
+        out.append(eval_section(run_dir, eval_log))
     if os.path.exists(results):
         md = open(results, encoding="utf-8").read()
         out.append("<pre>" + html.escape(md[:md.find("## Real maps")].strip()) + "</pre>")
