@@ -1,0 +1,51 @@
+{
+  "args": {
+    "steps": 20000000.0,
+    "envs": 8,
+    "workers": 0,
+    "seed": 0,
+    "hz": 120,
+    "gamma": 0.995,
+    "eval_map": "maps/bakenohana.osu",
+    "name": "spin120",
+    "timing": 0.3,
+    "spin_shaping": true,
+    "diff": "wide"
+  },
+  "ppo": {
+    "n_steps": 1024,
+    "batch_size": 2048,
+    "gamma": 0.995,
+    "policy_kwargs": {
+      "net_arch": [
+        256,
+        256
+      ]
+    }
+  },
+  "env": {
+    "MAX_CURSOR_SPEED": 4.8,
+    "K": 3,
+    "MISS_WINDOW": 400,
+    "REWARD": {
+      "300": 1.0,
+      "100": 0.4,
+      "50": 0.1,
+      "0": -1.0
+    },
+    "NESTED_REWARD": {
+      "true": 0.1,
+      "false": -0.3
+    },
+    "SPIN_REWARD": 0.5,
+    "CLICK_PENALTY": -0.05,
+    "SHAPING": 1.0,
+    "CURSOR_MARGIN": 100,
+    "LOOKAHEAD_MS": [
+      50,
+      150
+    ],
+    "TIMING_MS": 25,
+    "SPIN_RADIUS": 50
+  }
+}

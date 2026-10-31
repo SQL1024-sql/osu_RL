@@ -1,0 +1,1753 @@
+{
+ "summary": {
+  "maps": 60,
+  "model_acc": 0.9851286913600535,
+  "model_acc_median": 0.99445703972403,
+  "fc": 14,
+  "miss_per_100": 0.38857586943850786,
+  "spinner_share_of_misses": 0.8916666666666667,
+  "autoplay_acc": 0.9998692810457517
+ },
+ "maps": [
+  {
+   "map": "1539972",
+   "title": "Sunshine [Illumination]",
+   "objects": 1097,
+   "spinners": 7,
+   "cs": 4.2,
+   "ar": 9.3,
+   "od": 8.7,
+   "model": {
+    "acc": 0.9863263445761167,
+    "n300": 1078,
+    "n100": 12,
+    "n50": 0,
+    "miss": 7,
+    "combo": 833,
+    "max_combo": 1987,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 1097,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1987,
+    "max_combo": 1987,
+    "fc": true
+   }
+  },
+  {
+   "map": "4691907",
+   "title": "Pixel Planet [Knowledge's Extreme]",
+   "objects": 937,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 9.8,
+   "od": 9.5,
+   "model": {
+    "acc": 0.9861259338313767,
+    "n300": 918,
+    "n100": 18,
+    "n50": 0,
+    "miss": 1,
+    "combo": 827,
+    "max_combo": 1248,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 937,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1248,
+    "max_combo": 1248,
+    "fc": true
+   }
+  },
+  {
+   "map": "4705749",
+   "title": "Bloom [Kalibe's Extra]",
+   "objects": 988,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 9.2,
+   "od": 8.3,
+   "model": {
+    "acc": 0.997638326585695,
+    "n300": 985,
+    "n100": 2,
+    "n50": 0,
+    "miss": 1,
+    "combo": 1361,
+    "max_combo": 1435,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 988,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1435,
+    "max_combo": 1435,
+    "fc": true
+   }
+  },
+  {
+   "map": "1510674",
+   "title": "Chrono Diver -PENDULUMs- [fanzhen's Expert]",
+   "objects": 748,
+   "spinners": 2,
+   "cs": 4.4,
+   "ar": 9.3,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9973262032085561,
+    "n300": 746,
+    "n100": 0,
+    "n50": 0,
+    "miss": 2,
+    "combo": 598,
+    "max_combo": 1027,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 748,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1027,
+    "max_combo": 1027,
+    "fc": true
+   }
+  },
+  {
+   "map": "115384",
+   "title": "Silent Voyage to Eternity [BMix]",
+   "objects": 1442,
+   "spinners": 3,
+   "cs": 5.0,
+   "ar": 8.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9946833102172908,
+    "n300": 1432,
+    "n100": 7,
+    "n50": 0,
+    "miss": 3,
+    "combo": 1046,
+    "max_combo": 1772,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 1442,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1772,
+    "max_combo": 1772,
+    "fc": true
+   }
+  },
+  {
+   "map": "3429019",
+   "title": "Cinderella (TV Size) [Normal]",
+   "objects": 169,
+   "spinners": 0,
+   "cs": 3.0,
+   "ar": 5.0,
+   "od": 4.0,
+   "model": {
+    "acc": 1.0,
+    "n300": 169,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 282,
+    "max_combo": 282,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 169,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 282,
+    "max_combo": 282,
+    "fc": true
+   }
+  },
+  {
+   "map": "1813609",
+   "title": "Medicina [Medio de Rocket]",
+   "objects": 197,
+   "spinners": 1,
+   "cs": 2.5,
+   "ar": 4.0,
+   "od": 4.0,
+   "model": {
+    "acc": 0.988155668358714,
+    "n300": 194,
+    "n100": 2,
+    "n50": 0,
+    "miss": 1,
+    "combo": 253,
+    "max_combo": 442,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 197,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 442,
+    "max_combo": 442,
+    "fc": true
+   }
+  },
+  {
+   "map": "2862420",
+   "title": "time [Fudosu's Insane]",
+   "objects": 789,
+   "spinners": 0,
+   "cs": 4.5,
+   "ar": 9.0,
+   "od": 8.5,
+   "model": {
+    "acc": 0.9991550485847064,
+    "n300": 788,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1235,
+    "max_combo": 1235,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 789,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1235,
+    "max_combo": 1235,
+    "fc": true
+   }
+  },
+  {
+   "map": "5405851",
+   "title": "Wakuwaku Tabemono Land [Gluttony]",
+   "objects": 1694,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 9.7,
+   "od": 9.2,
+   "model": {
+    "acc": 0.9919323101141283,
+    "n300": 1674,
+    "n100": 19,
+    "n50": 0,
+    "miss": 1,
+    "combo": 1761,
+    "max_combo": 1887,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 1694,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1887,
+    "max_combo": 1887,
+    "fc": true
+   }
+  },
+  {
+   "map": "2224261",
+   "title": "Pastel Rain [Normal]",
+   "objects": 182,
+   "spinners": 9,
+   "cs": 2.4,
+   "ar": 3.0,
+   "od": 2.0,
+   "model": {
+    "acc": 0.9322344322344323,
+    "n300": 169,
+    "n100": 2,
+    "n50": 0,
+    "miss": 11,
+    "combo": 94,
+    "max_combo": 318,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 182,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 318,
+    "max_combo": 318,
+    "fc": true
+   }
+  },
+  {
+   "map": "839057",
+   "title": "Give Love On Christmas Day (Cover) [Normal]",
+   "objects": 461,
+   "spinners": 3,
+   "cs": 3.5,
+   "ar": 5.0,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9920462762111352,
+    "n300": 457,
+    "n100": 1,
+    "n50": 0,
+    "miss": 3,
+    "combo": 380,
+    "max_combo": 747,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 461,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 747,
+    "max_combo": 747,
+    "fc": true
+   }
+  },
+  {
+   "map": "106415",
+   "title": "Yorokobi [Hard]",
+   "objects": 520,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 7.0,
+   "od": 7.0,
+   "model": {
+    "acc": 0.9942307692307693,
+    "n300": 516,
+    "n100": 3,
+    "n50": 0,
+    "miss": 1,
+    "combo": 811,
+    "max_combo": 812,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 520,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 812,
+    "max_combo": 812,
+    "fc": true
+   }
+  },
+  {
+   "map": "1412952",
+   "title": "Fuujin Raijin [Insane]",
+   "objects": 267,
+   "spinners": 1,
+   "cs": 4.3,
+   "ar": 8.0,
+   "od": 7.0,
+   "model": {
+    "acc": 0.9912609238451935,
+    "n300": 264,
+    "n100": 2,
+    "n50": 0,
+    "miss": 1,
+    "combo": 438,
+    "max_combo": 439,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 267,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 439,
+    "max_combo": 439,
+    "fc": true
+   }
+  },
+  {
+   "map": "4705748",
+   "title": "Bloom [Easy]",
+   "objects": 292,
+   "spinners": 2,
+   "cs": 3.0,
+   "ar": 3.0,
+   "od": 2.0,
+   "model": {
+    "acc": 0.9794520547945206,
+    "n300": 285,
+    "n100": 1,
+    "n50": 4,
+    "miss": 2,
+    "combo": 199,
+    "max_combo": 695,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 292,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 695,
+    "max_combo": 695,
+    "fc": true
+   }
+  },
+  {
+   "map": "82313",
+   "title": "Battle! Team Galactic Commander [Easy]",
+   "objects": 56,
+   "spinners": 2,
+   "cs": 3.0,
+   "ar": 2.0,
+   "od": 2.0,
+   "model": {
+    "acc": 0.8988095238095238,
+    "n300": 49,
+    "n100": 3,
+    "n50": 2,
+    "miss": 2,
+    "combo": 129,
+    "max_combo": 268,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 56,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 268,
+    "max_combo": 268,
+    "fc": true
+   }
+  },
+  {
+   "map": "2465177",
+   "title": "Medicina [Avanzado]",
+   "objects": 324,
+   "spinners": 1,
+   "cs": 3.5,
+   "ar": 6.0,
+   "od": 6.0,
+   "model": {
+    "acc": 0.9948559670781894,
+    "n300": 322,
+    "n100": 1,
+    "n50": 0,
+    "miss": 1,
+    "combo": 474,
+    "max_combo": 587,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 324,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 587,
+    "max_combo": 587,
+    "fc": true
+   }
+  },
+  {
+   "map": "4114761",
+   "title": "Samsa [Normal]",
+   "objects": 173,
+   "spinners": 0,
+   "cs": 3.5,
+   "ar": 5.5,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9961464354527938,
+    "n300": 172,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 238,
+    "max_combo": 300,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 173,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 300,
+    "max_combo": 300,
+    "fc": true
+   }
+  },
+  {
+   "map": "4705750",
+   "title": "Bloom [Left's Insane]",
+   "objects": 779,
+   "spinners": 2,
+   "cs": 3.8,
+   "ar": 9.0,
+   "od": 7.8,
+   "model": {
+    "acc": 0.9965768078733419,
+    "n300": 776,
+    "n100": 1,
+    "n50": 0,
+    "miss": 2,
+    "combo": 843,
+    "max_combo": 1262,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 779,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1262,
+    "max_combo": 1262,
+    "fc": true
+   }
+  },
+  {
+   "map": "5388336",
+   "title": "Master of Shadow [Easy]",
+   "objects": 77,
+   "spinners": 3,
+   "cs": 2.0,
+   "ar": 3.0,
+   "od": 3.0,
+   "model": {
+    "acc": 0.8528138528138528,
+    "n300": 62,
+    "n100": 11,
+    "n50": 0,
+    "miss": 4,
+    "combo": 38,
+    "max_combo": 184,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 77,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 184,
+    "max_combo": 184,
+    "fc": true
+   }
+  },
+  {
+   "map": "1125406",
+   "title": "osu!memories [Remember?]",
+   "objects": 2199,
+   "spinners": 3,
+   "cs": 4.0,
+   "ar": 9.4,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9910565408519024,
+    "n300": 2171,
+    "n100": 25,
+    "n50": 0,
+    "miss": 3,
+    "combo": 1099,
+    "max_combo": 2856,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 2199,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 2856,
+    "max_combo": 2856,
+    "fc": true
+   }
+  },
+  {
+   "map": "2044367",
+   "title": "JUSTadICE (TV Size) [NiNo's Insane]",
+   "objects": 354,
+   "spinners": 0,
+   "cs": 4.0,
+   "ar": 9.0,
+   "od": 8.2,
+   "model": {
+    "acc": 0.9981167608286252,
+    "n300": 353,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 531,
+    "max_combo": 531,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 354,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 531,
+    "max_combo": 531,
+    "fc": true
+   }
+  },
+  {
+   "map": "5187913",
+   "title": "Die Young [INSANE]",
+   "objects": 319,
+   "spinners": 1,
+   "cs": 3.8,
+   "ar": 8.8,
+   "od": 7.8,
+   "model": {
+    "acc": 0.9843260188087775,
+    "n300": 312,
+    "n100": 6,
+    "n50": 0,
+    "miss": 1,
+    "combo": 414,
+    "max_combo": 448,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 319,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 448,
+    "max_combo": 448,
+    "fc": true
+   }
+  },
+  {
+   "map": "181365",
+   "title": "Pa' Bailar [Hard]",
+   "objects": 346,
+   "spinners": 7,
+   "cs": 4.0,
+   "ar": 6.0,
+   "od": 5.0,
+   "model": {
+    "acc": 0.976878612716763,
+    "n300": 338,
+    "n100": 0,
+    "n50": 0,
+    "miss": 8,
+    "combo": 130,
+    "max_combo": 549,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 346,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 549,
+    "max_combo": 549,
+    "fc": true
+   }
+  },
+  {
+   "map": "7575",
+   "title": "Makes No Difference [Hard ROCK !]",
+   "objects": 179,
+   "spinners": 1,
+   "cs": 6.0,
+   "ar": 8.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.957169459962756,
+    "n300": 168,
+    "n100": 10,
+    "n50": 0,
+    "miss": 1,
+    "combo": 424,
+    "max_combo": 425,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 179,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 425,
+    "max_combo": 425,
+    "fc": true
+   }
+  },
+  {
+   "map": "3359804",
+   "title": "Kira! Mankai Smile (Cut Ver.) [Gears-'s H@RD]",
+   "objects": 298,
+   "spinners": 0,
+   "cs": 4.0,
+   "ar": 8.0,
+   "od": 6.0,
+   "model": {
+    "acc": 1.0,
+    "n300": 298,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 543,
+    "max_combo": 543,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 298,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 543,
+    "max_combo": 543,
+    "fc": true
+   }
+  },
+  {
+   "map": "34678",
+   "title": "Sky Park (Instrumental) [Relaxing]",
+   "objects": 267,
+   "spinners": 2,
+   "cs": 4.0,
+   "ar": 5.0,
+   "od": 5.0,
+   "model": {
+    "acc": 0.9925093632958801,
+    "n300": 265,
+    "n100": 0,
+    "n50": 0,
+    "miss": 2,
+    "combo": 275,
+    "max_combo": 476,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 267,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 476,
+    "max_combo": 476,
+    "fc": true
+   }
+  },
+  {
+   "map": "1533391",
+   "title": "Chrono Diver -PENDULUMs- [Soda's Normal]",
+   "objects": 213,
+   "spinners": 3,
+   "cs": 3.0,
+   "ar": 5.0,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9827856025039123,
+    "n300": 209,
+    "n100": 1,
+    "n50": 0,
+    "miss": 3,
+    "combo": 262,
+    "max_combo": 439,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 213,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 439,
+    "max_combo": 439,
+    "fc": true
+   }
+  },
+  {
+   "map": "4174872",
+   "title": "happy palette [Precious~ >w<]",
+   "objects": 980,
+   "spinners": 0,
+   "cs": 4.0,
+   "ar": 9.0,
+   "od": 7.7,
+   "model": {
+    "acc": 1.0,
+    "n300": 980,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1263,
+    "max_combo": 1263,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 980,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1263,
+    "max_combo": 1263,
+    "fc": true
+   }
+  },
+  {
+   "map": "477666",
+   "title": "Mrazish (For Angel Remix) [Insane]",
+   "objects": 433,
+   "spinners": 2,
+   "cs": 4.0,
+   "ar": 8.7,
+   "od": 7.0,
+   "model": {
+    "acc": 0.9953810623556582,
+    "n300": 431,
+    "n100": 0,
+    "n50": 0,
+    "miss": 2,
+    "combo": 702,
+    "max_combo": 704,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 433,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 704,
+    "max_combo": 704,
+    "fc": true
+   }
+  },
+  {
+   "map": "1200757",
+   "title": "osu!memories [Kuron and guys' TATOE]",
+   "objects": 2245,
+   "spinners": 3,
+   "cs": 4.0,
+   "ar": 9.7,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9907201187824796,
+    "n300": 2217,
+    "n100": 21,
+    "n50": 1,
+    "miss": 6,
+    "combo": 1248,
+    "max_combo": 3177,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 2245,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 3177,
+    "max_combo": 3177,
+    "fc": true
+   }
+  },
+  {
+   "map": "3428524",
+   "title": "Cinderella (TV Size) [Cherry Blossoms, Blue Ocean, A Carpet of Fallen Leaves and Snow]",
+   "objects": 368,
+   "spinners": 0,
+   "cs": 3.8,
+   "ar": 9.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9981884057971014,
+    "n300": 367,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 553,
+    "max_combo": 553,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 368,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 553,
+    "max_combo": 553,
+    "fc": true
+   }
+  },
+  {
+   "map": "5187914",
+   "title": "Die Young [NORMAL]",
+   "objects": 171,
+   "spinners": 2,
+   "cs": 3.0,
+   "ar": 6.0,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9883040935672515,
+    "n300": 169,
+    "n100": 0,
+    "n50": 0,
+    "miss": 2,
+    "combo": 174,
+    "max_combo": 284,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 171,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 284,
+    "max_combo": 284,
+    "fc": true
+   }
+  },
+  {
+   "map": "765688",
+   "title": "Shining glow [Easy]",
+   "objects": 273,
+   "spinners": 3,
+   "cs": 3.0,
+   "ar": 3.0,
+   "od": 3.0,
+   "model": {
+    "acc": 0.9786324786324786,
+    "n300": 267,
+    "n100": 0,
+    "n50": 1,
+    "miss": 5,
+    "combo": 153,
+    "max_combo": 549,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 273,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 549,
+    "max_combo": 549,
+    "fc": true
+   }
+  },
+  {
+   "map": "195039",
+   "title": "Pa' Bailar [Normal]",
+   "objects": 232,
+   "spinners": 8,
+   "cs": 3.0,
+   "ar": 3.0,
+   "od": 3.0,
+   "model": {
+    "acc": 0.9583333333333334,
+    "n300": 222,
+    "n100": 1,
+    "n50": 0,
+    "miss": 9,
+    "combo": 136,
+    "max_combo": 512,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 232,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 512,
+    "max_combo": 512,
+    "fc": true
+   }
+  },
+  {
+   "map": "3519350",
+   "title": "Tenshi no agape [Hard]",
+   "objects": 278,
+   "spinners": 3,
+   "cs": 3.5,
+   "ar": 7.5,
+   "od": 6.0,
+   "model": {
+    "acc": 0.9892086330935251,
+    "n300": 275,
+    "n100": 0,
+    "n50": 0,
+    "miss": 3,
+    "combo": 239,
+    "max_combo": 475,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 278,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 475,
+    "max_combo": 475,
+    "fc": true
+   }
+  },
+  {
+   "map": "1083118",
+   "title": "YoiYoi Kokon [Hard]",
+   "objects": 658,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 7.5,
+   "od": 6.0,
+   "model": {
+    "acc": 0.9984802431610942,
+    "n300": 657,
+    "n100": 0,
+    "n50": 0,
+    "miss": 1,
+    "combo": 1024,
+    "max_combo": 1075,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 658,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1075,
+    "max_combo": 1075,
+    "fc": true
+   }
+  },
+  {
+   "map": "3339923",
+   "title": "Kira! Mankai Smile (Cut Ver.) [INS@NE]",
+   "objects": 403,
+   "spinners": 0,
+   "cs": 4.0,
+   "ar": 9.0,
+   "od": 8.5,
+   "model": {
+    "acc": 0.9983457402812241,
+    "n300": 402,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 592,
+    "max_combo": 592,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 403,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 592,
+    "max_combo": 592,
+    "fc": true
+   }
+  },
+  {
+   "map": "2321045",
+   "title": "Delicate Frozen Floret [Normal]",
+   "objects": 85,
+   "spinners": 0,
+   "cs": 3.8,
+   "ar": 4.0,
+   "od": 3.0,
+   "model": {
+    "acc": 0.9686274509803922,
+    "n300": 81,
+    "n100": 4,
+    "n50": 0,
+    "miss": 0,
+    "combo": 65,
+    "max_combo": 146,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 0.9921568627450981,
+    "n300": 84,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 145,
+    "max_combo": 146,
+    "fc": false
+   }
+  },
+  {
+   "map": "4782042",
+   "title": "Kimagure Romantic (TV Size) [Alya]",
+   "objects": 322,
+   "spinners": 0,
+   "cs": 4.0,
+   "ar": 9.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9958592132505176,
+    "n300": 320,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 452,
+    "max_combo": 452,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 322,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 452,
+    "max_combo": 452,
+    "fc": true
+   }
+  },
+  {
+   "map": "2044368",
+   "title": "JUSTadICE (TV Size) [Reform's Expert]",
+   "objects": 335,
+   "spinners": 0,
+   "cs": 3.5,
+   "ar": 9.2,
+   "od": 8.7,
+   "model": {
+    "acc": 0.9960199004975124,
+    "n300": 333,
+    "n100": 2,
+    "n50": 0,
+    "miss": 0,
+    "combo": 517,
+    "max_combo": 517,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 335,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 517,
+    "max_combo": 517,
+    "fc": true
+   }
+  },
+  {
+   "map": "2649829",
+   "title": "Kaimin! Anmin! Syalist Seikatsu (TV Size) [HeTo's Insane]",
+   "objects": 295,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 8.0,
+   "od": 7.3,
+   "model": {
+    "acc": 0.9966101694915255,
+    "n300": 294,
+    "n100": 0,
+    "n50": 0,
+    "miss": 1,
+    "combo": 421,
+    "max_combo": 422,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 295,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 422,
+    "max_combo": 422,
+    "fc": true
+   }
+  },
+  {
+   "map": "3527557",
+   "title": "Tenshi no agape [Resonance]",
+   "objects": 324,
+   "spinners": 3,
+   "cs": 4.0,
+   "ar": 9.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9907407407407407,
+    "n300": 321,
+    "n100": 0,
+    "n50": 0,
+    "miss": 3,
+    "combo": 243,
+    "max_combo": 483,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 324,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 483,
+    "max_combo": 483,
+    "fc": true
+   }
+  },
+  {
+   "map": "4114759",
+   "title": "Samsa [Hard]",
+   "objects": 284,
+   "spinners": 0,
+   "cs": 4.0,
+   "ar": 7.8,
+   "od": 6.0,
+   "model": {
+    "acc": 0.9964788732394366,
+    "n300": 283,
+    "n100": 0,
+    "n50": 0,
+    "miss": 1,
+    "combo": 364,
+    "max_combo": 419,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 284,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 419,
+    "max_combo": 419,
+    "fc": true
+   }
+  },
+  {
+   "map": "2726494",
+   "title": "Kimeta yo Hand in Hand (TV Size) [Normal]",
+   "objects": 237,
+   "spinners": 0,
+   "cs": 3.4,
+   "ar": 5.2,
+   "od": 4.6,
+   "model": {
+    "acc": 0.9964838255977496,
+    "n300": 236,
+    "n100": 0,
+    "n50": 1,
+    "miss": 0,
+    "combo": 202,
+    "max_combo": 369,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 237,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 369,
+    "max_combo": 369,
+    "fc": true
+   }
+  },
+  {
+   "map": "5046791",
+   "title": "Dear Diary, [Normal]",
+   "objects": 269,
+   "spinners": 8,
+   "cs": 3.0,
+   "ar": 6.0,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9702602230483272,
+    "n300": 261,
+    "n100": 0,
+    "n50": 0,
+    "miss": 8,
+    "combo": 279,
+    "max_combo": 466,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 269,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 466,
+    "max_combo": 466,
+    "fc": true
+   }
+  },
+  {
+   "map": "4783357",
+   "title": "Kimagure Romantic (TV Size) [Mochidrea's Hard]",
+   "objects": 250,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 7.7,
+   "od": 6.0,
+   "model": {
+    "acc": 0.996,
+    "n300": 249,
+    "n100": 0,
+    "n50": 0,
+    "miss": 1,
+    "combo": 406,
+    "max_combo": 407,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 250,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 407,
+    "max_combo": 407,
+    "fc": true
+   }
+  },
+  {
+   "map": "4623270",
+   "title": "Pixel Planet [riot's Extra]",
+   "objects": 614,
+   "spinners": 3,
+   "cs": 4.0,
+   "ar": 9.4,
+   "od": 9.0,
+   "model": {
+    "acc": 0.9842562432138979,
+    "n300": 601,
+    "n100": 10,
+    "n50": 0,
+    "miss": 3,
+    "combo": 373,
+    "max_combo": 933,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 614,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 933,
+    "max_combo": 933,
+    "fc": true
+   }
+  },
+  {
+   "map": "209668",
+   "title": "Pa' Bailar [MystykAMV's Insane]",
+   "objects": 489,
+   "spinners": 5,
+   "cs": 4.0,
+   "ar": 8.0,
+   "od": 7.0,
+   "model": {
+    "acc": 0.9829584185412407,
+    "n300": 479,
+    "n100": 5,
+    "n50": 0,
+    "miss": 5,
+    "combo": 391,
+    "max_combo": 713,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 489,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 713,
+    "max_combo": 713,
+    "fc": true
+   }
+  },
+  {
+   "map": "5070366",
+   "title": "Dear Diary, [Edgy's Extreme]",
+   "objects": 732,
+   "spinners": 2,
+   "cs": 3.8,
+   "ar": 9.8,
+   "od": 9.6,
+   "model": {
+    "acc": 0.9612932604735883,
+    "n300": 691,
+    "n100": 38,
+    "n50": 0,
+    "miss": 3,
+    "combo": 499,
+    "max_combo": 1084,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 732,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1084,
+    "max_combo": 1084,
+    "fc": true
+   }
+  },
+  {
+   "map": "5081773",
+   "title": "0k@eri [Normal]",
+   "objects": 249,
+   "spinners": 0,
+   "cs": 3.5,
+   "ar": 5.0,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9966532797858099,
+    "n300": 248,
+    "n100": 0,
+    "n50": 1,
+    "miss": 0,
+    "combo": 564,
+    "max_combo": 615,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 249,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 615,
+    "max_combo": 615,
+    "fc": true
+   }
+  },
+  {
+   "map": "1275016",
+   "title": "Bloom [Insane]",
+   "objects": 843,
+   "spinners": 2,
+   "cs": 3.8,
+   "ar": 9.0,
+   "od": 7.5,
+   "model": {
+    "acc": 0.9976275207591934,
+    "n300": 841,
+    "n100": 0,
+    "n50": 0,
+    "miss": 2,
+    "combo": 982,
+    "max_combo": 1324,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 843,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1324,
+    "max_combo": 1324,
+    "fc": true
+   }
+  },
+  {
+   "map": "5405852",
+   "title": "Wakuwaku Tabemono Land [Hard]",
+   "objects": 770,
+   "spinners": 0,
+   "cs": 3.8,
+   "ar": 8.0,
+   "od": 6.8,
+   "model": {
+    "acc": 0.9974025974025974,
+    "n300": 767,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1407,
+    "max_combo": 1407,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 770,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1407,
+    "max_combo": 1407,
+    "fc": true
+   }
+  },
+  {
+   "map": "3428924",
+   "title": "Cinderella (TV Size) [Hard]",
+   "objects": 281,
+   "spinners": 0,
+   "cs": 3.6,
+   "ar": 7.5,
+   "od": 6.0,
+   "model": {
+    "acc": 1.0,
+    "n300": 281,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 428,
+    "max_combo": 428,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 281,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 428,
+    "max_combo": 428,
+    "fc": true
+   }
+  },
+  {
+   "map": "2619929",
+   "title": "BOOZEHOUND [Down's Insane]",
+   "objects": 552,
+   "spinners": 0,
+   "cs": 5.0,
+   "ar": 8.0,
+   "od": 7.0,
+   "model": {
+    "acc": 0.998792270531401,
+    "n300": 551,
+    "n100": 1,
+    "n50": 0,
+    "miss": 0,
+    "combo": 940,
+    "max_combo": 940,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 552,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 940,
+    "max_combo": 940,
+    "fc": true
+   }
+  },
+  {
+   "map": "4335072",
+   "title": "Samsa [Suou's Insane]",
+   "objects": 396,
+   "spinners": 0,
+   "cs": 4.0,
+   "ar": 9.0,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9949494949494949,
+    "n300": 393,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 588,
+    "max_combo": 588,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 396,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 588,
+    "max_combo": 588,
+    "fc": true
+   }
+  },
+  {
+   "map": "1607542",
+   "title": "Kyoumen no Nami [Orchestra Ver.] [blossom]",
+   "objects": 226,
+   "spinners": 1,
+   "cs": 5.5,
+   "ar": 8.2,
+   "od": 8.0,
+   "model": {
+    "acc": 0.9601769911504425,
+    "n300": 213,
+    "n100": 12,
+    "n50": 0,
+    "miss": 1,
+    "combo": 387,
+    "max_combo": 388,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 226,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 388,
+    "max_combo": 388,
+    "fc": true
+   }
+  },
+  {
+   "map": "1082614",
+   "title": "YoiYoi Kokon [Sore]",
+   "objects": 992,
+   "spinners": 0,
+   "cs": 4.0,
+   "ar": 9.0,
+   "od": 8.5,
+   "model": {
+    "acc": 0.9979838709677419,
+    "n300": 989,
+    "n100": 3,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1522,
+    "max_combo": 1522,
+    "fc": true
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 992,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 1522,
+    "max_combo": 1522,
+    "fc": true
+   }
+  },
+  {
+   "map": "2224260",
+   "title": "Pastel Rain [Insane]",
+   "objects": 611,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 9.0,
+   "od": 7.5,
+   "model": {
+    "acc": 0.9950900163666121,
+    "n300": 607,
+    "n100": 3,
+    "n50": 0,
+    "miss": 1,
+    "combo": 976,
+    "max_combo": 977,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 611,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 977,
+    "max_combo": 977,
+    "fc": true
+   }
+  },
+  {
+   "map": "1705562",
+   "title": "Kyoumen no Nami [Orchestra Ver.] [normal]",
+   "objects": 98,
+   "spinners": 1,
+   "cs": 4.0,
+   "ar": 5.0,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9897959183673469,
+    "n300": 97,
+    "n100": 0,
+    "n50": 0,
+    "miss": 1,
+    "combo": 179,
+    "max_combo": 180,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 98,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 180,
+    "max_combo": 180,
+    "fc": true
+   }
+  },
+  {
+   "map": "4204247",
+   "title": "Imagine [Kirishima-'s Normal]",
+   "objects": 220,
+   "spinners": 0,
+   "cs": 3.0,
+   "ar": 5.5,
+   "od": 4.0,
+   "model": {
+    "acc": 0.9954545454545455,
+    "n300": 219,
+    "n100": 0,
+    "n50": 0,
+    "miss": 1,
+    "combo": 236,
+    "max_combo": 306,
+    "fc": false
+   },
+   "autoplay": {
+    "acc": 1.0,
+    "n300": 220,
+    "n100": 0,
+    "n50": 0,
+    "miss": 0,
+    "combo": 306,
+    "max_combo": 306,
+    "fc": true
+   }
+  }
+ ]
+}
