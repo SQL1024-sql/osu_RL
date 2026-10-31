@@ -24,10 +24,10 @@ VAL_SEEDS = range(10_000, 10_005)  # fixed random maps for picking checkpoints; 
 class RealMapEval(BaseCallback):
     """Every `freq` steps: plays the real test map (eval/*) and the validation maps (val/*), logs judgement stats."""
 
-    def __init__(self, map_path, freq, hz):
+    def __init__(self, map_path, freq, hz, diff):
         super().__init__()
         self.env = OsuEnv(parse_osu(map_path), hz=hz)
-        self.val_envs = [OsuEnv(random_beatmap(np.random.default_rng(s), n=100), hz=hz) for s in VAL_SEEDS]
+        self.val_envs = [OsuEnv(random_beatmap(np.random.default_rng(s), n=100, diff=diff), hz=hz) for s in VAL_SEEDS]
         self.freq, self.last = freq, 0
 
     def _on_step(self):
@@ -54,6 +54,7 @@ if __name__ == "__main__":
     p.add_argument("--gamma", type=float, default=0.99)
     p.add_argument("--eval-map", default="maps/bakenohana.osu")
     p.add_argument("--name", default="")
+    p.add_argument("--diff", default="narrow", choices=["narrow", "wide"], help="CS / AR / OD range of training maps")
     args = p.parse_args()
     torch.set_num_threads(4)  # the default (all cores) fights the env worker processes: 4 was fastest on i7-13620H with 8 envs
 
@@ -64,12 +65,12 @@ if __name__ == "__main__":
         consts = {k: getattr(env_mod, k) for k in ("MAX_CURSOR_SPEED", "K", "MISS_WINDOW", "REWARD", "NESTED_REWARD", "SPIN_REWARD", "CLICK_PENALTY", "SHAPING", "CURSOR_MARGIN", "LOOKAHEAD_MS")}
         json.dump(dict(args=vars(args), ppo=hparams, env=consts), f, indent=2, default=str)
 
-    env = make_vec_env(OsuEnv, n_envs=args.envs, vec_env_cls=SubprocVecEnv, seed=args.seed, env_kwargs=dict(hz=args.hz))
+    env = make_vec_env(OsuEnv, n_envs=args.envs, vec_env_cls=SubprocVecEnv, seed=args.seed, env_kwargs=dict(hz=args.hz, diff=args.diff))
     # small MLP: CPU is faster than GPU here
     model = PPO("MlpPolicy", env, verbose=1, device="cpu", seed=args.seed, **hparams)
     model.set_logger(configure(run_dir, ["stdout", "csv"]))
     model.learn(int(args.steps), callback=[
         CheckpointCallback(500_000 // args.envs, os.path.join(run_dir, "ckpt")),
-        RealMapEval(args.eval_map, 250_000, args.hz),
+        RealMapEval(args.eval_map, 250_000, args.hz, args.diff),
     ])
     model.save(os.path.join(run_dir, "model"))

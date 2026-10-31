@@ -6,19 +6,32 @@
 
 ## 結果
 
-模型完全只用隨機生成的譜訓練，下面的譜一張都沒看過（最佳 checkpoint 用另外的驗證集挑選，見 [results](results/20261031-0226-full120/results.md)）：
+模型完全只用隨機生成的譜訓練，下面的真實譜一張都沒看過。最佳 checkpoint 用另外的驗證集挑選，詳見 [results](results/20261031-1522-wide120/results.md)。
 
 | 測試集 | acc（平均 / 中位數） | 平均 miss | autoplay |
 |---|---|---|---|
-| 26 張真實 ranked 譜 | 93.2% / 97.1% | 13.6 | 100% |
-| 　其中難度在訓練範圍內（16 張） | **97.3%** / 97.8% | 9.6 | 100% |
-| 50 張沒看過的隨機譜 | 94.5% / 94.7% | 3.4 | 99.96% |
+| 26 張真實 ranked 譜（CS 3–9、AR 2–9.6、OD 2–9.2） | **97.2% / 98.0%** | 2.9 | 100% |
+| 50 張沒看過的隨機譜 | 92.2% / 92.5% | 3.4 | 99.96% |
 
-- 最好的一張是 1124896（1044 物件，AR8.7 OD7.5）：99.65%，只 miss 3 個
-- 弱點是訓練範圍外的難度：CS9 只有 45%，OD9.2 的 BAKENOHANA 只有 78%
-- 26 張真實譜的模型 replay 在 [results/…/replays/](results/20261031-0226-full120/replays) 裡，都經過 osu!lazer 重新判定。**27391 / 27409（99.93%）個判定和模擬器完全一致**
+- 最好的幾張：
+  - 1431386：99.73%，只 miss 1 個
+  - 1450162：99.62%，combo 440 / 441
+  - renatus_hard：99.52%
+- 26 張真實譜的模型 replay 在 [results/…/replays/](results/20261031-1522-wide120/replays) 裡，都經過 osu!lazer 重新判定，**27407 / 27409（99.99%）個判定和模擬器完全一致**
+- 還沒有 FC：每 100 個物件約 0.6 個 miss。100 也比 autoplay 多，時機還不夠精準
 
-![training curves](results/20261031-0226-full120/curves.png)
+### 研究過程（完整紀錄在 [RESEARCH.md](RESEARCH.md)）
+
+| 實驗 | 改了什麼 | 真實譜 acc |
+|---|---|---|
+| Exp 006 | 所有機制（slider、spinner、stacking、雙鍵、note lock），難度範圍 CS 3–5.5 / AR 7–10 / OD 5–9 | 93.2% |
+| Exp 007 | 難度範圍擴大到 CS 2–7 / AR 3–10 / OD 2–10 | **97.2%** |
+
+Exp 006 失分幾乎都來自訓練範圍外的難度，Exp 007 擴大範圍來驗證這個假設：
+- 範圍外的真實譜 acc 從 86.6% 升到 96.6%，miss 降到約 1/8；
+- 代價是時機稍微變鬆，narrow 隨機譜的 100 變多。
+
+![training curves](results/20261031-1522-wide120/curves.png)
 
 ## 這個專案在做什麼
 
@@ -80,7 +93,7 @@ python test_env.py
 用訓練好的模型打一張譜，輸出 replay（`--hz` 要和訓練時相同）：
 
 ```bash
-python play.py path/to/map.osu --model results/20261031-0226-full120/best_model.zip --hz 120 --out replay.osr
+python play.py path/to/map.osu --model results/20261031-1522-wide120/best_model.zip --hz 120 --out replay.osr
 ```
 
 `.osr` 可以直接拖進 osu! 觀看（譜面要先在遊戲裡）。
@@ -88,7 +101,7 @@ python play.py path/to/map.osu --model results/20261031-0226-full120/best_model.
 訓練（20M 步約 1.5 小時，8 核 CPU）：
 
 ```bash
-python train.py --steps 20e6 --hz 120 --gamma 0.995 --name full120 --eval-map maps/test/renatus_insane.osu
+python train.py --steps 20e6 --hz 120 --gamma 0.995 --diff wide --name wide120 --eval-map maps/test/renatus_insane.osu
 ```
 
 評估與 lazer 驗證都需要 ppy/osu 的 clone 和 .NET 10 SDK：

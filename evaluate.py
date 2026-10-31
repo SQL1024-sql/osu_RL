@@ -63,8 +63,9 @@ if __name__ == "__main__":
     out = os.path.join("results", name)
     os.makedirs(os.path.join(out, "replays"), exist_ok=True)
 
-    # 1. checkpoint selection on validation maps
-    val_maps = [random_beatmap(np.random.default_rng(s), n=100) for s in VAL_SEEDS]
+    # 1. checkpoint selection on validation maps, drawn like the run's training maps
+    diff = json.load(open(os.path.join(args.run_dir, "config.json")))["args"].get("diff", "narrow")
+    val_maps = [random_beatmap(np.random.default_rng(s), n=100, diff=diff) for s in VAL_SEEDS]
     ckpts = sorted(glob.glob(os.path.join(args.run_dir, "ckpt", "*.zip")), key=lambda f: int(re.findall(r"(\d+)_steps", f)[0]))
     ckpts.append(os.path.join(args.run_dir, "model.zip"))
     val = []
@@ -90,9 +91,9 @@ if __name__ == "__main__":
         test.append(dict(map=os.path.splitext(os.path.basename(path))[0], kind="real", objects=len(bm.objects),
                          sliders=len(bm.sliders), spinners=len(bm.spinners), cs=bm.cs, ar=bm.ar, od=bm.od, model=m, autoplay=o))
         print(f"test {test[-1]['map']}: model {pct(m['acc'])} miss {m['miss']} | autoplay {pct(o['acc'])}")
-    for s in TEST_SEEDS[:args.random]:
-        bm = random_beatmap(np.random.default_rng(s), n=100)
-        test.append(dict(map=f"random_{s}", kind="random", objects=len(bm.objects), sliders=len(bm.sliders),
+    for kind, s in [(k, s) for k in ("narrow", "wide") for s in TEST_SEEDS[:args.random]]:
+        bm = random_beatmap(np.random.default_rng(s), n=100, diff=kind)
+        test.append(dict(map=f"{kind}_{s}", kind=kind, objects=len(bm.objects), sliders=len(bm.sliders),
                          spinners=len(bm.spinners), cs=bm.cs, ar=bm.ar, od=bm.od,
                          model=play(bm, model_policy(model), args.hz), autoplay=play(bm, lambda e: (lambda ob: oracle(e)), args.hz)))
 
@@ -127,8 +128,8 @@ if __name__ == "__main__":
                       judgements=f"{t['model']['n300']}/{t['model']['n100']}/{t['model']['n50']}/{t['model']['miss']}",
                       combo=f"{t['model']['combo']}/{t['model']['max_combo']}", lazer_acc=pct(lazer[t["map"]]["acc"]),
                       autoplay=pct(t["autoplay"]["acc"])) for t in test if t["kind"] == "real"]
-    md = (f"# {name}\n\nbest checkpoint: `{val[best]['ckpt']}` (validation acc {pct(val[best]['acc'])}, {val[best]['miss']} misses)\n\n"
-          f"## Test set\n\n{table([summarize('real'), summarize('random')], ['set', 'model_acc', 'model_fc', 'model_miss', 'autoplay_acc', 'autoplay_fc'])}\n"
+    md = (f"# {name}\n\ntraining maps: {diff}. best checkpoint: `{val[best]['ckpt']}` (validation acc {pct(val[best]['acc'])}, {val[best]['miss']} misses)\n\n"
+          f"## Test set\n\n{table([summarize('real'), summarize('narrow'), summarize('wide')], ['set', 'model_acc', 'model_fc', 'model_miss', 'autoplay_acc', 'autoplay_fc'])}\n"
           f"acc = osu!stable-style accuracy over objects (300/100/50/miss). autoplay = scripted perfect player, the ceiling.\n\n"
           f"## Real maps\n\n{table(real_rows, ['map', 'objects', 'sliders', 'spinners', 'diff', 'acc', 'judgements', 'combo', 'lazer_acc', 'autoplay'])}\n"
           f"judgements = 300/100/50/miss. lazer_acc = accuracy osu!lazer shows for the same replay (it also weights slider ticks).\n\n"

@@ -19,8 +19,9 @@ CURSOR_MAX = PLAYFIELD + CURSOR_MARGIN
 
 
 class OsuEnv(gym.Env):
-    def __init__(self, beatmap=None, segment=40, hz=60):
+    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow"):
         self.fixed = beatmap
+        self.diff = diff  # difficulty range of the random training maps, see beatmap.DIFF
         self.segment = segment
         self.dt = 1000 / hz
         self.max_speed = MAX_CURSOR_SPEED * self.dt  # osu px per step
@@ -30,7 +31,7 @@ class OsuEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        bm = self.fixed or random_beatmap(self.np_random, self.segment)
+        bm = self.fixed or random_beatmap(self.np_random, self.segment, self.diff)
         self.bm, self.objs, self.kinds, self.ends = bm, bm.objects, bm.kinds, bm.ends
         self.r, self.preempt, self.w = bm.radius, bm.preempt, bm.windows
         self.ox, self.oy, self.ot = (bm.objects[:, k].tolist() for k in range(3))  # plain floats for the per-step loops

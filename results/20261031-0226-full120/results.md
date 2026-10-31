@@ -1,13 +1,14 @@
 # 20261031-0226-full120
 
-best checkpoint: `rl_model_15500000_steps.zip` (validation acc 95.13%, 19 misses)
+training maps: narrow. best checkpoint: `rl_model_15500000_steps.zip` (validation acc 95.13%, 19 misses)
 
 ## Test set
 
 | set | model_acc | model_fc | model_miss | autoplay_acc | autoplay_fc |
 |---|---|---|---|---|---|
 | real (26 maps) | 93.16% | 0/26 | 13.6 | 100.00% | 25/26 |
-| random (50 maps) | 94.48% | 0/50 | 3.4 | 99.96% | 47/50 |
+| narrow (50 maps) | 94.48% | 0/50 | 3.4 | 99.96% | 47/50 |
+| wide (50 maps) | 91.38% | 0/50 | 5.1 | 99.96% | 47/50 |
 
 acc = osu!stable-style accuracy over objects (300/100/50/miss). autoplay = scripted perfect player, the ceiling.
 
@@ -27,7 +28,7 @@ acc = osu!stable-style accuracy over objects (300/100/50/miss). autoplay = scrip
 | 20544 | 98 | 23 | 2 | CS5 AR2 OD2 | 79.25% | 76/4/2/16 | 27/166 | 79.79% | 100.00% |
 | 2190499 | 801 | 482 | 2 | CS3.7 AR9 OD8.4 | 98.25% | 781/18/0/2 | 1292/1322 | 98.39% | 100.00% |
 | 2593923 | 1110 | 302 | 0 | CS4.2 AR9.4 OD8.7 | 97.24% | 1067/37/0/6 | 611/1429 | 97.27% | 100.00% |
-| 2768615 | 143 | 60 | 2 | CS9 AR8 OD8 | 45.22% | 55/27/4/57 | 10/215 | 45.58% | 100.00% |
+| 2768615 | 143 | 60 | 2 | CS9 AR8 OD8 | 45.22% | 55/27/4/57 | 10/215 | 45.82% | 100.00% |
 | 3227428 | 98 | 75 | 1 | CS3.5 AR4 OD4 | 91.16% | 87/7/0/4 | 36/199 | 91.53% | 100.00% |
 | 3644427 | 1151 | 621 | 2 | CS3 AR9.2 OD8 | 98.73% | 1132/13/0/6 | 774/2256 | 98.77% | 99.94% |
 | 37902 | 192 | 52 | 3 | CS3 AR5 OD5 | 97.40% | 186/3/0/3 | 224/413 | 97.64% | 100.00% |
@@ -35,7 +36,7 @@ acc = osu!stable-style accuracy over objects (300/100/50/miss). autoplay = scrip
 | 42587 | 429 | 147 | 4 | CS5 AR8 OD8 | 96.89% | 412/11/0/6 | 268/600 | 96.99% | 100.00% |
 | 50859 | 229 | 78 | 3 | CS4 AR7 OD7 | 96.65% | 219/7/0/3 | 328/386 | 96.90% | 100.00% |
 | 75858 | 338 | 130 | 1 | CS4 AR7 OD7 | 99.21% | 335/1/0/2 | 208/498 | 99.19% | 100.00% |
-| 801165 | 1612 | 674 | 0 | CS4 AR9.3 OD8 | 93.05% | 1480/58/4/70 | 174/2359 | 92.66% | 100.00% |
+| 801165 | 1612 | 674 | 0 | CS4 AR9.3 OD8 | 93.05% | 1480/58/4/70 | 174/2359 | 92.59% | 100.00% |
 | 871815 | 134 | 60 | 1 | CS4 AR8.3 OD6 | 99.25% | 133/0/0/1 | 235/236 | 99.32% | 100.00% |
 | bakenohana | 569 | 351 | 0 | CS4 AR9.6 OD9.2 | 77.91% | 426/51/2/90 | 79/1003 | 77.46% | 100.00% |
 | renatus_hard | 558 | 396 | 2 | CS4 AR7.5 OD6 | 99.52% | 555/1/0/2 | 451/1134 | 99.56% | 100.00% |
@@ -46,7 +47,7 @@ judgements = 300/100/50/miss. lazer_acc = accuracy osu!lazer shows for the same 
 
 ## Simulator vs osu!lazer
 
-27391/27409 judgements identical on the real-map replays.
+27399/27409 judgements identical on the real-map replays.
 
 ## Checkpoints (validation)
 

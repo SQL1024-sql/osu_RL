@@ -368,9 +368,12 @@ def parse_lines(lines):
 
 # ---------- random training / fuzzing maps, written as real .osu text ----------
 
-def random_osu(rng, n=40):
+DIFF = {"narrow": ((3, 5.5), (7, 10), (5, 9)), "wide": ((2, 7), (3, 10), (2, 10))}  # CS / AR / OD ranges of random maps
+
+
+def random_osu(rng, n=40, diff="narrow"):
     beat = 60000 / rng.uniform(120, 240)
-    cs, ar, od = round(rng.uniform(3, 5.5), 1), round(rng.uniform(7, 10), 1), round(rng.uniform(5, 9), 1)
+    cs, ar, od = (round(rng.uniform(*r), 1) for r in DIFF[diff])
     sm, tick_rate = float(rng.choice([1.4, 1.8, 2.2])), int(rng.choice([1, 2]))
     timing, objs = [f"0,{beat!r},4,1,0,100,1,0"], []
     pos, t = np.round(rng.uniform(0, PLAYFIELD)), 1000
@@ -443,5 +446,5 @@ def random_osu(rng, n=40):
             f"SliderMultiplier:{sm}", f"SliderTickRate:{tick_rate}", "", "[TimingPoints]", *timing, "", "[HitObjects]", *objs]
 
 
-def random_beatmap(rng, n=40):
-    return parse_lines(random_osu(rng, n))
+def random_beatmap(rng, n=40, diff="narrow"):
+    return parse_lines(random_osu(rng, n, diff))
