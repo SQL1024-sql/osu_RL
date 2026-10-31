@@ -1,0 +1,33 @@
+{
+  "args": {
+    "steps": 5000000.0,
+    "envs": 8,
+    "seed": 0,
+    "eval_map": "maps/bakenohana.osu",
+    "name": "baseline"
+  },
+  "ppo": {
+    "n_steps": 1024,
+    "batch_size": 2048,
+    "policy_kwargs": {
+      "net_arch": [
+        256,
+        256
+      ]
+    }
+  },
+  "env": {
+    "DT": 16.666666666666668,
+    "MAX_SPEED": 80,
+    "K": 3,
+    "MISS_WINDOW": 400,
+    "REWARD": {
+      "300": 1.0,
+      "100": 0.4,
+      "50": 0.1,
+      "0": -1.0
+    },
+    "CLICK_PENALTY": -0.05,
+    "SHAPING": 1.0
+  }
+}

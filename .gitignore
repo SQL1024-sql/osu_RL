@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+# training runs (checkpoints, logs); curated results live in results/
+runs/
+models/
+*.log
+# beatmaps belong to their mappers: get_maps.py collects test maps from a ppy/osu clone
+maps/
+.omc/
+.claude/
