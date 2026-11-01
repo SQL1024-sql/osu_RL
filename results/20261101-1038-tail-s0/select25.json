@@ -1,0 +1,123 @@
+{
+ "best": {
+  "ckpt": "rl_model_7000000_steps.zip",
+  "acc": 0.9879110267763019,
+  "miss": 10
+ },
+ "val": [
+  {
+   "ckpt": "rl_model_1000000_steps.zip",
+   "acc": 0.21090081338704128,
+   "miss": 1081
+  },
+  {
+   "ckpt": "rl_model_2000000_steps.zip",
+   "acc": 0.9100000510447529,
+   "miss": 48
+  },
+  {
+   "ckpt": "rl_model_3000000_steps.zip",
+   "acc": 0.9450558363016968,
+   "miss": 48
+  },
+  {
+   "ckpt": "rl_model_4000000_steps.zip",
+   "acc": 0.966361616565132,
+   "miss": 31
+  },
+  {
+   "ckpt": "rl_model_5000000_steps.zip",
+   "acc": 0.9746743034055728,
+   "miss": 27
+  },
+  {
+   "ckpt": "rl_model_6000000_steps.zip",
+   "acc": 0.9877439129132128,
+   "miss": 10
+  },
+  {
+   "ckpt": "rl_model_7000000_steps.zip",
+   "acc": 0.9879110267763019,
+   "miss": 10
+  },
+  {
+   "ckpt": "rl_model_8000000_steps.zip",
+   "acc": 0.9855699723692533,
+   "miss": 8
+  },
+  {
+   "ckpt": "rl_model_9000000_steps.zip",
+   "acc": 0.9850005348602372,
+   "miss": 11
+  },
+  {
+   "ckpt": "rl_model_10000000_steps.zip",
+   "acc": 0.981630806618063,
+   "miss": 18
+  },
+  {
+   "ckpt": "rl_model_11000000_steps.zip",
+   "acc": 0.9748395818768932,
+   "miss": 27
+  },
+  {
+   "ckpt": "rl_model_12000000_steps.zip",
+   "acc": 0.9808753886614068,
+   "miss": 22
+  },
+  {
+   "ckpt": "rl_model_13000000_steps.zip",
+   "acc": 0.9766585705249841,
+   "miss": 20
+  },
+  {
+   "ckpt": "rl_model_14000000_steps.zip",
+   "acc": 0.9831663415337837,
+   "miss": 17
+  },
+  {
+   "ckpt": "rl_model_15000000_steps.zip",
+   "acc": 0.9642468435478322,
+   "miss": 14
+  },
+  {
+   "ckpt": "rl_model_16000000_steps.zip",
+   "acc": 0.9670874884871888,
+   "miss": 12
+  },
+  {
+   "ckpt": "rl_model_17000000_steps.zip",
+   "acc": 0.9676484791992631,
+   "miss": 11
+  },
+  {
+   "ckpt": "rl_model_18000000_steps.zip",
+   "acc": 0.9632234361996072,
+   "miss": 12
+  },
+  {
+   "ckpt": "rl_model_19000000_steps.zip",
+   "acc": 0.9627668142525827,
+   "miss": 13
+  },
+  {
+   "ckpt": "rl_model_20000000_steps.zip",
+   "acc": 0.9518195146309797,
+   "miss": 15
+  }
+ ],
+ "real": {
+  "acc": 0.9787708604555472,
+  "fc": 2,
+  "miss": 31,
+  "n100": 200,
+  "head_miss": 105,
+  "tail_miss": 40,
+  "spinner_miss": 14
+ },
+ "hf": {
+  "acc": 0.9907662188504746,
+  "fc": 12,
+  "miss": 42
+ }
+}

@@ -182,7 +182,7 @@ python verify.py --fuzz 30 --noise 0 0.3 1.0 --hz 120 --out runs/verify/fuzz
 
 ## 一起驗證假設
 
-每個假設都寫成一個設定檔，放在 [experiments/](experiments/)。內容包括：
+每個假設都寫成一個設定檔，放在 [experiments/](experiments/)，各參數的意思見 [experiments/README.md](experiments/README.md)。內容包括：
 - 假設本身；
 - 訓練參數；
 - 可以自動檢查的成功標準。完整的事先登記（操作變因、控制變因、理由）在 RESEARCH.md。
