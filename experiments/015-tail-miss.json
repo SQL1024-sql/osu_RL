@@ -1,0 +1,36 @@
+{
+ "id": "015-tail-miss",
+ "record": "Exp 015",
+ "baseline": "012-pool",
+ "hypothesis": "漏 slider tail 的懲罰從 −0.3 加重到 −1.0，agent 會跟完 slider 再出發，不會在接大跳時提早離開",
+ "train": {
+  "steps": 20000000.0,
+  "hz": 120,
+  "gamma": 0.995,
+  "diff": "wide",
+  "timing": 0.3,
+  "spin_shaping": true,
+  "spin_free_press": true,
+  "pool": "maps/hf/train",
+  "pool_frac": 0.5,
+  "tail_miss": -1.0,
+  "eval_map": "maps/test/renatus_insane.osu"
+ },
+ "criteria": [
+  {
+   "metric": "real.tail_miss",
+   "op": "<",
+   "value": 40
+  },
+  {
+   "metric": "real.acc",
+   "op": ">=",
+   "value": 0.9794
+  },
+  {
+   "metric": "hf.acc",
+   "op": ">=",
+   "value": 0.9911
+  }
+ ]
+}

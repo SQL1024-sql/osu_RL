@@ -36,8 +36,10 @@ def max_combo(bm):
 def play(bm, policy_fn, hz):
     env = OsuEnv(bm, hz=hz)
     _, counts, acc = run(env, policy_fn(env))
+    lost = lambda kind: sum(k == kind and not hit for _, k, hit in env.nested_log)
     return dict(acc=acc, n300=counts[300], n100=counts[100], n50=counts[50], miss=counts[0], combo=env.max_combo,
-                max_combo=max_combo(bm), fc=counts[0] == 0 and env.max_combo == max_combo(bm))
+                max_combo=max_combo(bm), fc=counts[0] == 0 and env.max_combo == max_combo(bm),
+                head_miss=lost("head"), tail_miss=lost("tail"), spinner_miss=int(sum(s == 0 and bm.kinds[i] == SPINNER for i, _, s in env.judgements)))
 
 
 def model_policy(model):

@@ -1,0 +1,26 @@
+{
+ "id": "009-timing",
+ "record": "Exp 009",
+ "baseline": "007-wide",
+ "hypothesis": "加入連續時機獎勵（circle 命中時最多 +0.3，誤差到 25 ms 歸零），100 會變少，miss 不會變多",
+ "train": {
+  "steps": 20000000.0,
+  "hz": 120,
+  "gamma": 0.995,
+  "diff": "wide",
+  "timing": 0.3,
+  "eval_map": "maps/test/renatus_insane.osu"
+ },
+ "criteria": [
+  {
+   "metric": "real.acc",
+   "op": ">=",
+   "value": 0.967
+  },
+  {
+   "metric": "real.fc",
+   "op": ">=",
+   "value": 1
+  }
+ ]
+}

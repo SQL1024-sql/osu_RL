@@ -1,0 +1,28 @@
+{
+ "id": "011-spinner",
+ "record": "Exp 011",
+ "baseline": "009-timing",
+ "hypothesis": "spinner 期間加距離 shaping，而且按鍵不算空點，agent 會學會轉 spinner",
+ "train": {
+  "steps": 20000000.0,
+  "hz": 120,
+  "gamma": 0.995,
+  "diff": "wide",
+  "timing": 0.3,
+  "spin_shaping": true,
+  "spin_free_press": true,
+  "eval_map": "maps/test/renatus_insane.osu"
+ },
+ "criteria": [
+  {
+   "metric": "real.spinner_miss",
+   "op": "<=",
+   "value": 29
+  },
+  {
+   "metric": "real.fc",
+   "op": ">",
+   "value": 3
+  }
+ ]
+}

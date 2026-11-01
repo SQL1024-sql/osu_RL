@@ -180,6 +180,27 @@ python verify.py --fuzz 30 --noise 0 0.3 1.0 --hz 120 --out runs/verify/fuzz
 
 `verify.py` 預設在 `%LOCALAPPDATA%\Microsoft\dotnet10` 找 .NET 10，ppy/osu clone 的位置用 `OSU_REPO` 環境變數指定。
 
+## 一起驗證假設
+
+每個假設都寫成一個設定檔，放在 [experiments/](experiments/)。內容包括：
+- 假設本身；
+- 訓練參數；
+- 可以自動檢查的成功標準。完整的事先登記（操作變因、控制變因、理由）在 RESEARCH.md。
+
+任何人都可以用不同的 seed 重跑同一個假設：
+
+```bash
+python run.py experiments/015-tail-miss.json --seed 2
+```
+
+這個指令會依序：
+1. 照設定檔訓練；
+2. 用 25 張驗證譜挑 checkpoint（H6）；
+3. 打 26 張真實測試譜和 60 張 HF 測試譜；
+4. 把結果和選出的模型寫進 `results/experiments/<id>/seed<N>/`。
+
+成功標準是用多個 seed 的平均來判定的，單一 seed 的通過 / 不通過只能當參考。加上 `--dry-run` 只會印出訓練指令，不會真的跑。
+
 ## 專案結構
 
 | 檔案 | 內容 |
@@ -188,6 +209,8 @@ python verify.py --fuzz 30 --noise 0 0.3 1.0 --hz 120 --out runs/verify/fuzz
 | [env.py](env.py) | Gymnasium 環境與判定邏輯 |
 | [train.py](train.py) | PPO 訓練、驗證集評估、紀錄 |
 | [play.py](play.py) | 模型或 autoplay 打譜，輸出 `.osr` |
+| [run.py](run.py) | 照 `experiments/*.json` 跑一個 seed：訓練 → 挑 checkpoint → 測試 → summary |
+| [select_ckpt.py](select_ckpt.py) | 用 25 張驗證譜重新挑 checkpoint（H6） |
 | [watch.py](watch.py) | `.osz` 每個難度產生 replay 到指定資料夾，可直接用 lazer 打開 |
 | [replay.py](replay.py) | `.osr` 寫入 |
 | [verify.py](verify.py) | 用 osu!lazer 重新判定並逐項比對 |

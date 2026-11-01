@@ -48,8 +48,8 @@ if __name__ == "__main__":
     hf_files = [str(f) for f in np.random.default_rng(20_000).choice(hf_files, min(60, len(hf_files)), replace=False)]  # same sample as eval_hf.py
     hf = [play(parse_osu(f), model_policy(model), args.hz) for f in hf_files]
     out = dict(best=best, val=val,
-               real=dict(acc=float(np.mean([x["acc"] for x in real])), fc=sum(x["fc"] for x in real), miss=sum(x["miss"] for x in real),
-                         n100=sum(x["n100"] for x in real)),
+               real=dict(acc=float(np.mean([x["acc"] for x in real])), **{k: int(sum(x[k] for x in real)) for k in
+                                                                         ("fc", "miss", "n100", "head_miss", "tail_miss", "spinner_miss")}),
                hf=dict(acc=float(np.mean([x["acc"] for x in hf])), fc=sum(x["fc"] for x in hf), miss=sum(x["miss"] for x in hf)))
     name = os.path.basename(os.path.normpath(args.run_dir))
     json.dump(out, open(os.path.join("results", name, "select25.json"), "w"), indent=1)

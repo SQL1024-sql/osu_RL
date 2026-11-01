@@ -1,0 +1,30 @@
+{
+ "id": "012-pool",
+ "record": "Exp 012 / 014",
+ "baseline": "011-spinner",
+ "hypothesis": "一半的回合用 HF 真實譜訓練，在沒看過的真實譜上打得更好",
+ "train": {
+  "steps": 20000000.0,
+  "hz": 120,
+  "gamma": 0.995,
+  "diff": "wide",
+  "timing": 0.3,
+  "spin_shaping": true,
+  "spin_free_press": true,
+  "pool": "maps/hf/train",
+  "pool_frac": 0.5,
+  "eval_map": "maps/test/renatus_insane.osu"
+ },
+ "criteria": [
+  {
+   "metric": "hf.acc",
+   "op": ">",
+   "value": 0.99
+  },
+  {
+   "metric": "real.acc",
+   "op": ">=",
+   "value": 0.977
+  }
+ ]
+}

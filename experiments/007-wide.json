@@ -1,0 +1,20 @@
+{
+ "id": "007-wide",
+ "record": "Exp 007",
+ "baseline": null,
+ "hypothesis": "擴大隨機譜的難度範圍（CS 2–7、AR 3–10、OD 2–10），範圍外的真實譜成績會大幅改善",
+ "train": {
+  "steps": 20000000.0,
+  "hz": 120,
+  "gamma": 0.995,
+  "diff": "wide",
+  "eval_map": "maps/test/renatus_insane.osu"
+ },
+ "criteria": [
+  {
+   "metric": "real.acc",
+   "op": ">=",
+   "value": 0.967
+  }
+ ]
+}
