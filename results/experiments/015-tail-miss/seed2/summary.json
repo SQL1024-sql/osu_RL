@@ -1,0 +1,82 @@
+{
+ "experiment": "015-tail-miss",
+ "seed": 2,
+ "run": "20261101-1620-015-tail-miss-s2",
+ "ckpt": "rl_model_20000000_steps.zip",
+ "val": {
+  "ckpt": "rl_model_20000000_steps.zip",
+  "acc": 0.9768280768334497,
+  "miss": 28
+ },
+ "real": {
+  "acc": 0.9819902215211287,
+  "fc": 3,
+  "miss": 69,
+  "n100": 169,
+  "head_miss": 16,
+  "tail_miss": 11,
+  "spinner_miss": 59
+ },
+ "hf": {
+  "acc": 0.9810188106782786,
+  "fc": 14,
+  "miss": 113
+ },
+ "config": {
+  "args": {
+   "steps": 20000000.0,
+   "envs": 8,
+   "workers": 0,
+   "seed": 2,
+   "hz": 120,
+   "gamma": 0.995,
+   "eval_map": "maps/test/renatus_insane.osu",
+   "name": "015-tail-miss-s2",
+   "timing": 0.3,
+   "spin_shaping": true,
+   "spin_free_press": true,
+   "device": "hybrid",
+   "tail_miss": -0.6,
+   "pool": "maps/hf/train",
+   "pool_frac": 0.5,
+   "diff": "wide"
+  },
+  "ppo": {
+   "n_steps": 1024,
+   "batch_size": 2048,
+   "gamma": 0.995,
+   "policy_kwargs": {
+    "net_arch": [
+     256,
+     256
+    ]
+   }
+  },
+  "env": {
+   "MAX_CURSOR_SPEED": 4.8,
+   "K": 3,
+   "MISS_WINDOW": 400,
+   "REWARD": {
+    "300": 1.0,
+    "100": 0.4,
+    "50": 0.1,
+    "0": -1.0
+   },
+   "NESTED_REWARD": {
+    "true": 0.1,
+    "false": -0.3
+   },
+   "SPIN_REWARD": 0.5,
+   "CLICK_PENALTY": -0.05,
+   "SHAPING": 1.0,
+   "CURSOR_MARGIN": 100,
+   "LOOKAHEAD_MS": [
+    50,
+    150
+   ],
+   "TIMING_MS": 25,
+   "SPIN_RADIUS": 50
+  },
+  "torch": "2.14.1+cu130"
+ }
+}
