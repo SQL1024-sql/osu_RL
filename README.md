@@ -124,6 +124,12 @@ python play.py path/to/map.osu --model results/20261101-0021-pool120/best_model.
 
 `.osr` 可以直接拖進 osu! 觀看（譜面要先在遊戲裡）。
 
+或用 `watch.py`：給它一個 `.osz`，它會幫每個 osu!standard 難度產生 replay，存到指定資料夾。加 `--open` 會用本機 build 的 osu!lazer 一起匯入譜面和 replay（lazer 匯入 `.osz` 後會刪掉檔案，所以交給它的是輸出資料夾裡的複本）：
+
+```bash
+python watch.py "path/to/map.osz" --out replays/my_map --diff Hard --open
+```
+
 訓練需要真實譜。資料來源是 Hugging Face 的 [project-riz/osu-beatmaps](https://huggingface.co/datasets/project-riz/osu-beatmaps)，下面的指令會串流下載一個分片（約 1GB），只留下 osu!standard 的 `.osu` 檔，音檔不會寫進硬碟：
 
 ```bash
@@ -182,6 +188,7 @@ python verify.py --fuzz 30 --noise 0 0.3 1.0 --hz 120 --out runs/verify/fuzz
 | [env.py](env.py) | Gymnasium 環境與判定邏輯 |
 | [train.py](train.py) | PPO 訓練、驗證集評估、紀錄 |
 | [play.py](play.py) | 模型或 autoplay 打譜，輸出 `.osr` |
+| [watch.py](watch.py) | `.osz` 每個難度產生 replay 到指定資料夾，可直接用 lazer 打開 |
 | [replay.py](replay.py) | `.osr` 寫入 |
 | [verify.py](verify.py) | 用 osu!lazer 重新判定並逐項比對 |
 | [evaluate.py](evaluate.py) | checkpoint 挑選、測試集、輸出 `results/` |
