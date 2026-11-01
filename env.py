@@ -21,12 +21,13 @@ CURSOR_MAX = PLAYFIELD + CURSOR_MARGIN
 
 
 class OsuEnv(gym.Env):
-    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0, spin_shaping=False, spin_free_press=False, pool=(), pool_frac=0.0):
+    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0, spin_shaping=False, spin_free_press=False, tail_miss=None, pool=(), pool_frac=0.0):
         self.fixed = beatmap
         self.diff = diff  # difficulty range of the random training maps, see beatmap.DIFF
         self.timing = timing  # max bonus for a centred circle hit, see TIMING_MS
         self.spin_shaping = spin_shaping  # distance shaping during spinners too, see SPIN_RADIUS
         self.spin_free_press = spin_free_press  # no empty-click penalty while a spinner runs (holding a key spins it)
+        self.tail_miss = tail_miss  # reward for a missed slider tail; None = NESTED_REWARD[False] like every nested object
         self.pool, self.pool_frac = list(pool), pool_frac  # .osu paths; this share of episodes is a window of a real map
         self.segment = segment
         self.dt = 1000 / hz
@@ -178,6 +179,8 @@ class OsuEnv(gym.Env):
         s["hits"] += hit
         if kind != "tail":  # classic tail is a small tick: no combo
             self._combo(hit)
+        if kind == "tail" and not hit and self.tail_miss is not None:
+            return self.tail_miss
         return NESTED_REWARD[hit]
 
     def _in_follow(self, sl, expanded):

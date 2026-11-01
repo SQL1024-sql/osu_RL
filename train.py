@@ -88,6 +88,7 @@ if __name__ == "__main__":
     p.add_argument("--spin-shaping", action="store_true", help="distance shaping toward the spinner ring (env.SPIN_RADIUS)")
     p.add_argument("--spin-free-press", action="store_true", help="no empty-click penalty while a spinner runs")
     p.add_argument("--device", default="cpu", choices=["cpu", "hybrid"], help="hybrid: PPO updates on the GPU (needs CUDA torch)")
+    p.add_argument("--tail-miss", type=float, default=None, help="reward for a missed slider tail (default: same as other slider parts)")
     p.add_argument("--pool", default="", help="folder of real .osu maps to train on, e.g. maps/hf/train")
     p.add_argument("--pool-frac", type=float, default=0.5, help="share of episodes taken from --pool")
     p.add_argument("--diff", default="narrow", choices=["narrow", "wide"], help="CS / AR / OD range of training maps")
@@ -103,7 +104,7 @@ if __name__ == "__main__":
         json.dump(dict(args=vars(args), ppo=hparams, env=consts, torch=torch.__version__), f, indent=2, default=str)
 
     vec = dict(vec_env_cls=GroupedSubprocVecEnv, vec_env_kwargs=dict(workers=args.workers)) if args.workers else dict(vec_env_cls=SubprocVecEnv)
-    env = make_vec_env(OsuEnv, n_envs=args.envs, seed=args.seed, env_kwargs=dict(hz=args.hz, diff=args.diff, timing=args.timing, spin_shaping=args.spin_shaping, spin_free_press=args.spin_free_press,
+    env = make_vec_env(OsuEnv, n_envs=args.envs, seed=args.seed, env_kwargs=dict(hz=args.hz, diff=args.diff, timing=args.timing, spin_shaping=args.spin_shaping, spin_free_press=args.spin_free_press, tail_miss=args.tail_miss,
                                                                   pool=sorted(glob.glob(os.path.join(args.pool, "*.osu"))) if args.pool else (),
                                                                   pool_frac=args.pool_frac), **vec)
     # small MLP: CPU is faster than GPU for rollouts; only the updates gain from the GPU
