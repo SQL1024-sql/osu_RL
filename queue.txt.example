@@ -1,0 +1,6 @@
+# osu_rl 實驗排隊清單 (每行一個任務，支援 # 註解)
+# 執行指令: python queue_runs.py --file queue.txt
+
+experiments/016-lookahead.json --seed 1
+experiments/016-lookahead.json --seed 2
+# experiments/016-lookahead.json --seed 3
