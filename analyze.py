@@ -9,7 +9,7 @@ import math
 from stable_baselines3 import PPO
 
 from beatmap import SLIDER, SPINNER, parse_osu
-from env import OsuEnv
+from env import OsuEnv, k_from_obs
 from evaluate import model_policy
 from play import run
 
@@ -39,11 +39,12 @@ if __name__ == "__main__":
     p.add_argument("--hz", type=int, default=120)
     args = p.parse_args()
     model = PPO.load(args.model, device="cpu")
+    k = k_from_obs(model.observation_space.shape[0])
     judged, objects = collections.Counter(), collections.Counter()
     nested_miss, nested_all = collections.Counter(), collections.Counter()
     for path in args.maps:
         bm = parse_osu(path)
-        env = OsuEnv(bm, hz=args.hz)
+        env = OsuEnv(bm, hz=args.hz, k=k)
         run(env, model_policy(model)(env))
         for i, _, score in env.judgements:
             s = situation(bm, i)

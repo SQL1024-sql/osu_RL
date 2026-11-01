@@ -13,7 +13,7 @@ import numpy as np
 from stable_baselines3 import PPO
 
 from beatmap import SLIDER, SPINNER, parse_osu, random_osu
-from env import OsuEnv
+from env import OsuEnv, k_from_obs
 from play import oracle, run
 from replay import write_osr
 
@@ -77,14 +77,15 @@ def report(agree, diffs):
         print("  mismatch:", d)
 
 
-def verify(plays, hz, out):
+def verify(plays, hz, out, k=None):
     """plays: [(name, map path, policy_fn)], policy_fn(env) -> policy. Plays each in the simulator, writes the replay,
     judges all replays in one lazer run. Returns (agree Counter, diffs, [(name, bm, env, lazer header)])."""
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     done = []
     for name, map_path, policy_fn in plays:
         bm = parse_osu(map_path)
-        env = OsuEnv(bm, hz=hz)
+        cur_k = k if k is not None else getattr(policy_fn, "k", None)
+        env = OsuEnv(bm, hz=hz, k=cur_k)
         frames, counts, _ = run(env, policy_fn(env))
         write_osr(f"{out}_{name}.osr", map_path, frames, counts, env.max_combo)
         done.append((name, bm, env, map_path))
@@ -123,8 +124,10 @@ if __name__ == "__main__":
 
     if args.model == "oracle":
         plays = [(f"{name}_n{noise}", path, oracle_policy(noise, i)) for i, (name, path) in enumerate(maps) for noise in args.noise]
+        k = None
     else:
         model = PPO.load(args.model, device="cpu")
+        k = k_from_obs(model.observation_space.shape[0])
         plays = [(name, path, lambda e: (lambda o: model.predict(o, deterministic=True)[0])) for name, path in maps]
-    agree, diffs, _ = verify(plays, args.hz, args.out)
+    agree, diffs, _ = verify(plays, args.hz, args.out, k=k)
     report(agree, diffs)

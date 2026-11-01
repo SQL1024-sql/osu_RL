@@ -15,7 +15,7 @@ import zipfile
 from stable_baselines3 import PPO
 
 from beatmap import parse_osu
-from env import OsuEnv
+from env import OsuEnv, k_from_obs
 from get_maps import is_standard
 from play import run
 from replay import write_osr
@@ -45,6 +45,7 @@ if __name__ == "__main__":
 
     os.makedirs(args.out, exist_ok=True)
     model = PPO.load(args.model, device="cpu")
+    k = k_from_obs(model.observation_space.shape[0])
     replays = []
     with tempfile.TemporaryDirectory() as tmp:
         for name, data in charts(args.map):
@@ -52,7 +53,7 @@ if __name__ == "__main__":
                 continue
             osu_path = os.path.join(tmp, "map.osu")
             open(osu_path, "wb").write(data)
-            env = OsuEnv(parse_osu(osu_path), hz=args.hz)
+            env = OsuEnv(parse_osu(osu_path), hz=args.hz, k=k)
             frames, counts, acc = run(env, lambda o: model.predict(o, deterministic=True)[0])
             out = os.path.join(args.out, f"{name}.osr")
             write_osr(out, osu_path, frames, counts, env.max_combo)

@@ -20,8 +20,16 @@ LOOKAHEAD_MS = (50, 150)  # extra slider ball positions in observation (besides 
 CURSOR_MAX = PLAYFIELD + CURSOR_MARGIN
 
 
+def obs_dim(k=K):
+    return 6 + 6 * k + 3 + 2 * (1 + len(LOOKAHEAD_MS)) + 5
+
+
+def k_from_obs(n):
+    return (n - (6 + 3 + 2 * (1 + len(LOOKAHEAD_MS)) + 5)) // 6
+
+
 class OsuEnv(gym.Env):
-    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0, spin_shaping=False, spin_free_press=False, tail_miss=None, pool=(), pool_frac=0.0):
+    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0, spin_shaping=False, spin_free_press=False, tail_miss=None, pool=(), pool_frac=0.0, k=K):
         self.fixed = beatmap
         self.diff = diff  # difficulty range of the random training maps, see beatmap.DIFF
         self.timing = timing  # max bonus for a centred circle hit, see TIMING_MS
@@ -32,8 +40,8 @@ class OsuEnv(gym.Env):
         self.segment = segment
         self.dt = 1000 / hz
         self.max_speed = MAX_CURSOR_SPEED * self.dt  # osu px per step
-        n_obs = 6 + 6 * K + 3 + 2 * (1 + len(LOOKAHEAD_MS)) + 5
-        self.observation_space = gym.spaces.Box(-np.inf, np.inf, (n_obs,), np.float32)
+        self.k = K if k is None else k
+        self.observation_space = gym.spaces.Box(-np.inf, np.inf, (obs_dim(self.k),), np.float32)
         self.action_space = gym.spaces.Box(-1, 1, (4,), np.float32)  # dx, dy, key1, key2 (>0 = held)
 
     def reset(self, seed=None, options=None):
@@ -323,7 +331,7 @@ class OsuEnv(gym.Env):
         o = [*(self.cursor / PLAYFIELD), *map(float, self.keys), self.r / 64, self.w[2] / 200]
         upcoming = []
         for i in range(self.next, len(self.objs)):
-            if len(upcoming) == K:
+            if len(upcoming) == self.k:
                 break
             if not self.started[i]:
                 upcoming.append(i)
@@ -334,7 +342,7 @@ class OsuEnv(gym.Env):
                       float(kind == SLIDER), float(kind == SPINNER)]
             else:
                 o += [0.0] * 6
-        o += [0.0] * 6 * (K - len(upcoming))
+        o += [0.0] * 6 * (self.k - len(upcoming))
         if self.active:
             s = self.active[0]
             sl = s["sl"]

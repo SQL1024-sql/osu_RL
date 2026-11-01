@@ -5,7 +5,7 @@ import numpy as np
 from stable_baselines3 import PPO
 
 from beatmap import SPINNER, parse_osu
-from env import OsuEnv
+from env import OsuEnv, k_from_obs
 from replay import write_osr
 
 
@@ -59,11 +59,13 @@ if __name__ == "__main__":
     p.add_argument("--model", default="models/osu_ppo")
     p.add_argument("--out", default="replay.osr")
     p.add_argument("--hz", type=int, default=60)  # must match training
+    p.add_argument("--k", type=int, default=None, help="upcoming objects (default: auto-detect from model)")
     args = p.parse_args()
 
     bm = parse_osu(args.map)
-    env = OsuEnv(bm, hz=args.hz)
     model = PPO.load(args.model, device="cpu")
+    k = args.k or k_from_obs(model.observation_space.shape[0])
+    env = OsuEnv(bm, hz=args.hz, k=k)
     frames, counts, acc = run(env, lambda o: model.predict(o, deterministic=True)[0])
     print(f"{bm.title}: acc {acc:.2%}  300/100/50/miss = {counts[300]}/{counts[100]}/{counts[50]}/{counts[0]}  max combo {env.max_combo}")
     write_osr(args.out, args.map, frames, counts, env.max_combo)

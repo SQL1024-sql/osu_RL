@@ -19,7 +19,7 @@ import numpy as np
 from stable_baselines3 import PPO
 
 from beatmap import SLIDER, SPINNER, parse_osu, random_beatmap
-from env import OsuEnv
+from env import OsuEnv, k_from_obs
 from play import oracle, run
 from train import val_maps
 from verify import verify
@@ -33,8 +33,10 @@ def max_combo(bm):
     return int((bm.kinds != SLIDER).sum() + 2 * len(bm.sliders) + nested)
 
 
-def play(bm, policy_fn, hz):
-    env = OsuEnv(bm, hz=hz)
+def play(bm, policy_fn, hz, k=None):
+    if k is None and hasattr(policy_fn, "k"):
+        k = policy_fn.k
+    env = OsuEnv(bm, hz=hz, k=k)
     _, counts, acc = run(env, policy_fn(env))
     lost = lambda kind: sum(k == kind and not hit for _, k, hit in env.nested_log)
     return dict(acc=acc, n300=counts[300], n100=counts[100], n50=counts[50], miss=counts[0], combo=env.max_combo,
@@ -43,7 +45,10 @@ def play(bm, policy_fn, hz):
 
 
 def model_policy(model):
-    return lambda e: (lambda o: model.predict(o, deterministic=True)[0])
+    fn = lambda e: (lambda o: model.predict(o, deterministic=True)[0])
+    if hasattr(model, "observation_space"):
+        fn.k = k_from_obs(model.observation_space.shape[0])
+    return fn
 
 
 def table(rows, cols):

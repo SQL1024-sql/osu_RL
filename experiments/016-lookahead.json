@@ -1,0 +1,36 @@
+{
+ "id": "016-lookahead",
+ "record": "Exp 016 (H3)",
+ "baseline": "012-pool",
+ "hypothesis": "觀察視野從 K=3 擴展至 K=5，能讓 agent 提早看到連打走向與 slider 後的大跳，降低 miss 與 100",
+ "train": {
+  "k": 5,
+  "steps": 20000000.0,
+  "hz": 120,
+  "gamma": 0.995,
+  "diff": "wide",
+  "timing": 0.3,
+  "spin_shaping": true,
+  "spin_free_press": true,
+  "pool": "maps/hf/train",
+  "pool_frac": 0.5,
+  "eval_map": "maps/test/renatus_insane.osu"
+ },
+ "criteria": [
+  {
+   "metric": "real.acc",
+   "op": ">=",
+   "value": 0.9824
+  },
+  {
+   "metric": "hf.acc",
+   "op": ">=",
+   "value": 0.9931
+  },
+  {
+   "metric": "real.miss",
+   "op": "<=",
+   "value": 28
+  }
+ ]
+}

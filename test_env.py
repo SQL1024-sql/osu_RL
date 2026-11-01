@@ -45,3 +45,11 @@ raw = open(path, "rb").read()
 mode, version = struct.unpack_from("<bi", raw)
 assert (mode, version) == (0, 20240101) and raw[5] == 0x0B
 print(f"ok: oracle acc on {bm.title} = {acc:.2%}, {dict(counts)}, max combo {env.max_combo}")
+from env import k_from_obs
+env_k5 = OsuEnv(k=5)
+assert env_k5.observation_space.shape == (50,)
+assert env_k5.k == 5
+assert k_from_obs(50) == 5
+assert k_from_obs(38) == 3
+assert k_from_obs(68) == 8
+print("ok: k parameter and observation space dimensions verified")
