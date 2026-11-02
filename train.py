@@ -8,6 +8,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.logger import configure
+from stable_baselines3.common.utils import get_linear_fn
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
 import numpy as np
@@ -93,6 +94,7 @@ if __name__ == "__main__":
     p.add_argument("--pool-frac", type=float, default=0.5, help="share of episodes taken from --pool")
     p.add_argument("--diff", default="narrow", choices=["narrow", "wide"], help="CS / AR / OD range of training maps")
     p.add_argument("--k", type=int, default=K, help="number of upcoming objects in observation (default: 3)")
+    p.add_argument("--lr-decay", action="store_true", help="learning rate falls linearly from 3e-4 to 0 over --steps")
     args = p.parse_args()
     torch.set_num_threads(4)  # the default (all cores) fights the env worker processes: 4 was fastest on i7-13620H with 8 envs
 
@@ -110,7 +112,8 @@ if __name__ == "__main__":
                                                                   pool_frac=args.pool_frac, k=args.k), **vec)
     # small MLP: CPU is faster than GPU for rollouts; only the updates gain from the GPU
     cls, device = (HybridPPO, "cuda") if args.device == "hybrid" else (PPO, "cpu")
-    model = cls("MlpPolicy", env, verbose=1, device=device, seed=args.seed, **hparams)
+    lr = get_linear_fn(3e-4, 0.0, 1.0) if args.lr_decay else 3e-4  # 3e-4: SB3's default
+    model = cls("MlpPolicy", env, verbose=1, device=device, seed=args.seed, learning_rate=lr, **hparams)
     model.set_logger(configure(run_dir, ["stdout", "csv"]))
     model.learn(int(args.steps), callback=[
         CheckpointCallback(500_000 // args.envs, os.path.join(run_dir, "ckpt")),

@@ -1,0 +1,31 @@
+{
+ "id": "017-lr-decay",
+ "record": "Exp 017 (H4a)",
+ "baseline": "012-pool",
+ "hypothesis": "學習率從 3e-4 線性衰減到 0，後段的震盪變小，學習在中段之後繼續進步，seed 之間的差距也變小",
+ "train": {
+  "steps": 20000000.0,
+  "hz": 120,
+  "gamma": 0.995,
+  "diff": "wide",
+  "timing": 0.3,
+  "spin_shaping": true,
+  "spin_free_press": true,
+  "pool": "maps/hf/train",
+  "pool_frac": 0.5,
+  "lr_decay": true,
+  "eval_map": "maps/test/renatus_insane.osu"
+ },
+ "criteria": [
+  {
+   "metric": "real.acc",
+   "op": ">=",
+   "value": 0.9824
+  },
+  {
+   "metric": "hf.acc",
+   "op": ">=",
+   "value": 0.9931
+  }
+ ]
+}

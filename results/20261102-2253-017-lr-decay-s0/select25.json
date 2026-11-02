@@ -1,0 +1,123 @@
+{
+ "best": {
+  "ckpt": "rl_model_20000000_steps.zip",
+  "acc": 0.9947282266387029,
+  "miss": 2
+ },
+ "val": [
+  {
+   "ckpt": "rl_model_1000000_steps.zip",
+   "acc": 0.6248208839619606,
+   "miss": 282
+  },
+  {
+   "ckpt": "rl_model_2000000_steps.zip",
+   "acc": 0.8751280646270958,
+   "miss": 66
+  },
+  {
+   "ckpt": "rl_model_3000000_steps.zip",
+   "acc": 0.9485651497497698,
+   "miss": 36
+  },
+  {
+   "ckpt": "rl_model_4000000_steps.zip",
+   "acc": 0.9537189764417369,
+   "miss": 35
+  },
+  {
+   "ckpt": "rl_model_5000000_steps.zip",
+   "acc": 0.9602632266941865,
+   "miss": 23
+  },
+  {
+   "ckpt": "rl_model_6000000_steps.zip",
+   "acc": 0.9621114994951009,
+   "miss": 15
+  },
+  {
+   "ckpt": "rl_model_7000000_steps.zip",
+   "acc": 0.9668170356314569,
+   "miss": 22
+  },
+  {
+   "ckpt": "rl_model_8000000_steps.zip",
+   "acc": 0.989500353984265,
+   "miss": 0
+  },
+  {
+   "ckpt": "rl_model_9000000_steps.zip",
+   "acc": 0.9866487410810391,
+   "miss": 0
+  },
+  {
+   "ckpt": "rl_model_10000000_steps.zip",
+   "acc": 0.9764746385254724,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_11000000_steps.zip",
+   "acc": 0.9749829288591499,
+   "miss": 1
+  },
+  {
+   "ckpt": "rl_model_12000000_steps.zip",
+   "acc": 0.9842102799693729,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_13000000_steps.zip",
+   "acc": 0.9880845989103055,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_14000000_steps.zip",
+   "acc": 0.9884932010608432,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_15000000_steps.zip",
+   "acc": 0.9897010441980981,
+   "miss": 3
+  },
+  {
+   "ckpt": "rl_model_16000000_steps.zip",
+   "acc": 0.9916738728541784,
+   "miss": 6
+  },
+  {
+   "ckpt": "rl_model_17000000_steps.zip",
+   "acc": 0.9936161501159604,
+   "miss": 3
+  },
+  {
+   "ckpt": "rl_model_18000000_steps.zip",
+   "acc": 0.994697954880877,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_19000000_steps.zip",
+   "acc": 0.9936429685852837,
+   "miss": 2
+  },
+  {
+   "ckpt": "rl_model_20000000_steps.zip",
+   "acc": 0.9947282266387029,
+   "miss": 2
+  }
+ ],
+ "real": {
+  "acc": 0.9907622433517387,
+  "fc": 11,
+  "miss": 12,
+  "n100": 49,
+  "head_miss": 16,
+  "tail_miss": 45,
+  "spinner_miss": 6
+ },
+ "hf": {
+  "acc": 0.9956393937890086,
+  "fc": 35,
+  "miss": 17
+ }
+}
