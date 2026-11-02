@@ -914,3 +914,63 @@
   1. 改善最大的是 **100**：137 → 49（同 seed 的 Exp 012 是 111）。學習率降下來之後，時機變準了，跟「固定 LR 在後段一直震盪、時機練不細」的推測一致
   2. 驗證曲線在後段很平穩（18M 之後驗證 acc 都在 99.26–99.54%），而且最好的 checkpoint 就是最後一個。挑 checkpoint 的運氣成分應該會變小，這也要 seed 1 來確認
   3. 新的最佳單一模型是 `results/experiments/017-lr-decay/seed0/model.zip`。`live/` 的 expert 等級還是 Exp 012 的模型，要換的話另外決定
+
+### 附記：Exp 017 的模型在房間規則下變差很多（2026-11-03）
+- 想把 `live/` 的 expert 換成 Exp 017 seed 0 時發現：renatus_insane 在模擬器和 lazer 重播判定都是 SS，但 live 的 lazer 計分只有 93.28%（101 個 Ok）
+- 原因：我們的 .osr 是 stable 格式，lazer 重播時會自動套 **Classic mod**，模擬器和所有評估也都照 Classic 規則（slider 頭只有 hit / miss）。但 live 用房間的 mod 計分，沒有 Classic，**slider 頭也照時機給 Great / Ok / Meh**，房間裡的真人也是這樣被判的
+- 兩個模型用房間規則（lazer、不開 mod）打 26 張真實測試譜（`runs/verify/room_rules_012_vs_017.json`）：
+
+| | 平均 acc | Ok | Miss |
+|---|---|---|---|
+| Exp 012（H6，12M 步，目前的 expert） | **98.32%** | **80** | 48 |
+| Exp 017 seed 0（LR 衰減，20M 步） | 92.80% | 1643 | **37** |
+
+- 26 張裡 Exp 017 只有 CS9（2768615）比較好，其他都比較差（bakenohana 97.03% → 78.84%）
+- 解讀：Classic 規則下 slider 頭的時機不影響分數，時機獎勵（Exp 009）也只加在 circle 上，所以 agent 沒有理由把 slider 頭按準。學習率衰減讓策略更精細地照獎勵最佳化，slider 頭就按得更隨便。Exp 012 的模型是剛好按得準，不是被訓練出來的
+- **方法上的問題**：到目前為止所有實驗都只用 Classic 規則評估，跟 AI 實際在房間裡被判的規則不同。Exp 017 在 Classic 規則下的進步是真的，但對 live 用途反而是退步
+- 決定：live 的 expert 維持 Exp 012
+- 之後的方向：讓模擬器支援不開 Classic 的判定（slider 頭照時機），訓練和評估都用房間規則，或至少把時機獎勵也加到 slider 頭上，再重跑 Exp 017
+
+### 工程：模擬器支援房間規則（不開 Classic）（2026-11-03）
+- 目的：讓訓練和評估用 AI 在線上房間實際被判的規則。之前的模擬器只照 Classic mod（stable 格式 replay 在 lazer 會自動套用）
+- 照 lazer 原始碼，不開 Classic 時的差別（`OsuModClassic`、`DrawableSliderHead`、`DrawableSlider`、`SliderTailCircle`、`StartTimeOrderedHitPolicy`、`ScoreProcessor`）：
+  1. slider 頭跟 circle 一樣照時機給 Great / Ok / Meh / Miss，算準度、算 combo
+  2. slider 本身的判定被忽略（IgnoreHit / IgnoreMiss），不算分也不算 combo
+  3. tail 跟到是 SliderTailHit（基本分 150、加 combo）；沒跟到是 IgnoreMiss，**扣準度但不斷 combo**
+  4. note lock 改成 `StartTimeOrderedHitPolicy`：最早一個游標下的物件接收點擊；前一個 circle / slider 頭還沒判定、而且還沒到它的時間時會擋住（shake）；成功點到時，前面還沒判定的 circle / 頭全部強制 miss
+  5. 準度 = 基本分 / 最大基本分：circle、頭、spinner 300，tick、repeat 30，tail 150（Classic 下頭 30、tail 10、slider 本身 300）；spinner 的 tick 是 bonus，不算準度
+- 實作：`OsuEnv(classic=False)`，`train.py --room`，`select_ckpt.py` 依 run 的設定用同一套規則，房間規則下用 lazer 的準度挑 checkpoint；`evaluate.play` 多回傳 `lazer_acc`。Classic 模式跟原本的模擬器逐步比對 57 局（真實譜 + 隨機譜 × 3 種雜訊），獎勵、判定、replay 幀完全相同
+- 房間規則下的獎勵：頭用 circle 的獎勵（含時機獎勵），tail 跟到 +0.5、沒跟到 −0.5（tail 在 lazer 值半個 circle），tick / repeat 不變。這是新的設計選擇，會在 Exp 018 一起檢驗
+- 驗證（`verify.py --room`：lazer 不開 mod 判同一份 replay；harness 照 `MultiplayerPlayer` 設 `ApplyNewJudgementsWhenFailed`，血量歸零後照樣計分）：
+
+| | circle / slider 頭 / spinner | tick / repeat / tail | max combo | 準度 |
+|---|---|---|---|---|
+| 26 張真實譜 × oracle 3 種雜訊 | 39243 / 39243 | 25123 / 25140 | 78 / 78 | 68 / 78 |
+| 30 張隨機譜 × 3 種雜訊 | 5495 / 5496 | 4201 / 4203 | 90 / 90 | 87 / 90 |
+| Exp 012 模型 × 26 張真實譜 | 13080 / 13081 | 8379 / 8380 | 25 / 26 | 24 / 26 |
+
+  - 不一致幾乎都在雜訊 0.3 / 1.0 的亂打局（準度 15–36%），雜訊 0 的 oracle 全部一致；準度不一致的局，都同時有 tick / tail 不一致
+  - spinner 的轉數差異在 Classic 規則下一模一樣（同一個模型、同幾張譜），是原本就有的，跟這次的改動無關
+  - 過程中修掉的錯：一開始把 tail 的 miss 當成斷 combo（lazer 是 IgnoreMiss），Exp 012 模型有 14 張譜 max combo 對不上，修正後只剩 1 張
+- **現有模型在房間規則下的成績**（lazer 準度，26 張真實譜 / 60 張 HF 測試譜）：
+
+| 模型 | 真實譜 | HF | 真實譜 100 | 真實譜 FC |
+|---|---|---|---|---|
+| Exp 012 seed 0（目前 live 的 expert） | **98.34%** | **99.11%** | 79 | 5 |
+| Exp 014 seed 1（同設定，換 seed） | 92.52% | 93.64% | 1902 | 1 |
+| Exp 017 seed 0（LR 衰減） | 92.85% | 94.72% | 1644 | 9 |
+
+- 解讀：Exp 012 seed 0 把 slider 頭按準是**運氣**，同設定換一個 seed 就掉到 92.52%。Classic 規則下 slider 頭的時機不影響分數，所以訓練不會教這件事
+
+### Exp 018 — 用房間規則訓練（H9）（2026-11-03）
+- **問題**：AI 在線上房間是照「不開 Classic」的規則被判，但到目前為止都用 Classic 規則訓練，slider 頭的時機沒有被教到。房間規則下，Exp 012 / 014 兩個 seed 是 98.34% / 92.52%，好壞全看運氣
+- **假設 H9**：用房間規則訓練（slider 頭照時機給獎勵），agent 會穩定地把 slider 頭按準。房間規則下的 lazer 準度變高，seed 之間的差距也變小
+- **操作變因**：`--room`（模擬器規則 + 跟著改的獎勵：頭用 circle 的獎勵和時機獎勵，tail ±0.5，slider 本身不再給獎勵）。這是規則和獎勵一起改，沒辦法拆開，因為房間規則下 slider 本身沒有判定
+- **控制變因**：Exp 012 / 014 的其他設定（50% 真實譜、wide、時機獎勵 0.3、spinner 設定、K = 3、固定學習率、8 env、20M 步、Linux + GPU 混合模式）。學習率衰減（Exp 017）這次不加，一次只改一件事
+- **方法**：seed 0 和 seed 1，`run.py` 跑完用 H6 挑 checkpoint（房間規則下以 lazer 準度挑）。所有成績都是房間規則下的 lazer 準度
+- **成功標準**（兩個 seed 平均，對照 Exp 012 / 014 在房間規則下的成績）：
+  1. 26 張真實譜 lazer 準度 ≥ 98.34%（目前 live 的 expert，也就是對照組裡運氣好的那個 seed）
+  2. 60 張 HF 測試譜 lazer 準度 ≥ 99.11%
+  3. 兩個 seed 的真實譜準度都 ≥ 97.5%（不再出現 Exp 014 那種 92% 的 seed）
+  - 1、2、3 都過才算 H9 成立
+- 紀錄：`runs/*-018-room-s{0,1}/`，結果在 `results/experiments/018-room/seed{0,1}/summary.json`

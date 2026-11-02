@@ -53,3 +53,10 @@ assert k_from_obs(50) == 5
 assert k_from_obs(38) == 3
 assert k_from_obs(68) == 8
 print("ok: k parameter and observation space dimensions verified")
+
+# room rules (no Classic): heads are judged like circles, sliders leave no judgement of their own
+env = OsuEnv(bm, hz=120, classic=False)
+_, counts, acc = run(env, lambda o: oracle(env))
+assert acc > 0.9 and len(env.judgements) == len(env.objs), acc
+assert 0 < env.lazer_accuracy() <= 1
+print(f"ok: room rules oracle acc {acc:.2%}, lazer accuracy {env.lazer_accuracy():.2%}")

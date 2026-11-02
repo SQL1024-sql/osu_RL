@@ -67,6 +67,8 @@ namespace osu.Game.Rulesets.Osu.Tests
                 score.ScoreInfo.Mods = mods; // the room's mods, not the .osr's
 
                 var p = player = new ReplayPlayer(score);
+                // as MultiplayerPlayer: judgements keep scoring after health runs out
+                p.OnLoadComplete += _ => p.GameplayState.ScoreProcessor.ApplyNewJudgementsWhenFailed = true;
                 p.OnLoadComplete += _ => p.GameplayState.ScoreProcessor.NewJudgement += r =>
                 {
                     if (player != p)

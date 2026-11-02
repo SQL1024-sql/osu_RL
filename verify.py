@@ -25,12 +25,14 @@ NESTED_KIND = {"SliderHeadCircle": "head", "SliderTick": "tick", "SliderRepeat":
 OBJECT_KIND = {0: "HitCircle", SLIDER: "Slider", SPINNER: "Spinner"}
 
 
-def lazer_judge(jobs, jobs_file):
-    """jobs: [(map.osu, replay.osr, out.csv)] -> [(header, rows)], all in one headless lazer run."""
+def lazer_judge(jobs, jobs_file, room=False):
+    """jobs: [(map.osu, replay.osr, out.csv)] -> [(header, rows)], all in one headless lazer run.
+    room: judge without the Classic mod the replays bring, as in an online room."""
     with open(jobs_file, "w") as f:
         f.write("\n".join("|".join(os.path.abspath(p) for p in job) for job in jobs))
     subprocess.run([DOTNET, "test", "osu.Game.Rulesets.Osu.Tests", "--filter", "FullyQualifiedName~TestSceneOsuRLReplay"],
-                   cwd=OSU_REPO, env=dict(os.environ, DOTNET_ROOT=DOTNET_ROOT, OSU_RL_JOBS=os.path.abspath(jobs_file)), check=True, capture_output=True)
+                   cwd=OSU_REPO, env=dict(os.environ, DOTNET_ROOT=DOTNET_ROOT, OSU_RL_JOBS=os.path.abspath(jobs_file), OSU_RL_NO_CLASSIC="1" if room else "0"),
+                   check=True, capture_output=True)
     out = []
     for *_, csv in jobs:
         with open(csv) as f:
@@ -47,13 +49,15 @@ def compare(bm, env, header, rows):
         if not same:
             diffs.append((kind, *info))
 
-    lazer_obj = {(round(float(t)), kind): res for t, kind, res, _ in rows if kind in OBJECT_KIND.values()}
+    lazer_obj = {(round(float(t)), kind): res for t, kind, res, _ in rows if kind in OBJECT_KIND.values() or kind == "SliderHeadCircle"}
     for i, _, score in env.judgements:
         kind = OBJECT_KIND[bm.kinds[i]]
-        res = lazer_obj.get((round(bm.objects[i, 2]), kind))
+        # without Classic a slider's own judgement is ignored and its head carries Great / Ok / Meh / Miss
+        res = lazer_obj.get((round(bm.objects[i, 2]), "SliderHeadCircle" if kind == "Slider" and not env.classic else kind))
         check(kind, res == SIM_TO_LAZER[score], (i, score, res))
 
-    lazer_nested = {(round(float(t)), NESTED_KIND[kind]): res.endswith("Hit") for t, kind, res, _ in rows if kind in NESTED_KIND}
+    lazer_nested = {(round(float(t)), NESTED_KIND[kind]): res.endswith("Hit") or res in ("Great", "Ok", "Meh")
+                    for t, kind, res, _ in rows if kind in NESTED_KIND}
     sim_spin = Counter()
     for time, kind, hit in env.nested_log:
         if kind == "spin":
@@ -66,11 +70,12 @@ def compare(bm, env, header, rows):
                          if sp.start <= float(t) <= sp.end and not res.endswith("Miss"))
         check("spins", sim_spin[round(sp.start)] == lazer_hits, (i, sim_spin[round(sp.start)], lazer_hits))
     check("max_combo", env.max_combo == int(header["max_combo"]), (env.max_combo, header["max_combo"]))
+    check("accuracy", abs(env.lazer_accuracy() - float(header["accuracy"])) < 1e-9, (env.lazer_accuracy(), header["accuracy"]))
     return agree, diffs
 
 
 def report(agree, diffs):
-    for kind in ("HitCircle", "Slider", "Spinner", "head", "tick", "repeat", "tail", "spins", "max_combo"):
+    for kind in ("HitCircle", "Slider", "Spinner", "head", "tick", "repeat", "tail", "spins", "max_combo", "accuracy"):
         n = agree[kind, True] + agree[kind, False]
         if n:
             print(f"{kind:>10}: {agree[kind, True]}/{n} agree")
@@ -78,7 +83,7 @@ def report(agree, diffs):
         print("  mismatch:", d)
 
 
-def verify(plays, hz, out, k=None):
+def verify(plays, hz, out, k=None, room=False):
     """plays: [(name, map path, policy_fn)], policy_fn(env) -> policy. Plays each in the simulator, writes the replay,
     judges all replays in one lazer run. Returns (agree Counter, diffs, [(name, bm, env, lazer header)])."""
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
@@ -86,11 +91,11 @@ def verify(plays, hz, out, k=None):
     for name, map_path, policy_fn in plays:
         bm = parse_osu(map_path)
         cur_k = k if k is not None else getattr(policy_fn, "k", None)
-        env = OsuEnv(bm, hz=hz, k=cur_k)
+        env = OsuEnv(bm, hz=hz, k=cur_k, classic=not room)
         frames, counts, _ = run(env, policy_fn(env))
         write_osr(f"{out}_{name}.osr", map_path, frames, counts, env.max_combo)
         done.append((name, bm, env, map_path))
-    results = lazer_judge([(m, f"{out}_{name}.osr", f"{out}_{name}_lazer.csv") for name, _, _, m in done], out + "_jobs.txt")
+    results = lazer_judge([(m, f"{out}_{name}.osr", f"{out}_{name}_lazer.csv") for name, _, _, m in done], out + "_jobs.txt", room)
     agree, diffs, summary = Counter(), [], []
     for (name, bm, env, _), (header, rows) in zip(done, results):
         a, d = compare(bm, env, header, rows)
@@ -113,6 +118,7 @@ if __name__ == "__main__":
     p.add_argument("--hz", type=int, default=120)
     p.add_argument("--out", required=True, help="output prefix")
     p.add_argument("--fuzz", type=int, default=0, help="number of random maps")
+    p.add_argument("--room", action="store_true", help="online room rules (no Classic mod) in both the simulator and lazer")
     args = p.parse_args()
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
 
@@ -130,5 +136,5 @@ if __name__ == "__main__":
         model = PPO.load(args.model, device="cpu")
         k = k_from_obs(model.observation_space.shape[0])
         plays = [(name, path, lambda e: (lambda o: model.predict(o, deterministic=True)[0])) for name, path in maps]
-    agree, diffs, _ = verify(plays, args.hz, args.out, k=k)
+    agree, diffs, _ = verify(plays, args.hz, args.out, k=k, room=args.room)
     report(agree, diffs)

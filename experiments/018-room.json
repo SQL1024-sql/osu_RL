@@ -1,0 +1,31 @@
+{
+ "id": "018-room",
+ "record": "Exp 018 (H9)",
+ "baseline": "012-pool",
+ "hypothesis": "用房間規則（不開 Classic）訓練，agent 會把 slider 頭按準，房間規則下的 lazer 準度變高，而且不再看 seed 運氣",
+ "train": {
+  "steps": 20000000.0,
+  "hz": 120,
+  "gamma": 0.995,
+  "diff": "wide",
+  "timing": 0.3,
+  "spin_shaping": true,
+  "spin_free_press": true,
+  "pool": "maps/hf/train",
+  "pool_frac": 0.5,
+  "eval_map": "maps/test/renatus_insane.osu",
+  "room": true
+ },
+ "criteria": [
+  {
+   "metric": "real.lazer_acc",
+   "op": ">=",
+   "value": 0.9834
+  },
+  {
+   "metric": "hf.lazer_acc",
+   "op": ">=",
+   "value": 0.9911
+  }
+ ]
+}

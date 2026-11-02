@@ -33,13 +33,13 @@ def max_combo(bm):
     return int((bm.kinds != SLIDER).sum() + 2 * len(bm.sliders) + nested)
 
 
-def play(bm, policy_fn, hz, k=None):
+def play(bm, policy_fn, hz, k=None, classic=True):
     if k is None and hasattr(policy_fn, "k"):
         k = policy_fn.k
-    env = OsuEnv(bm, hz=hz, k=k)
+    env = OsuEnv(bm, hz=hz, k=k, classic=classic)
     _, counts, acc = run(env, policy_fn(env))
     lost = lambda kind: sum(k == kind and not hit for _, k, hit in env.nested_log)
-    return dict(acc=acc, n300=counts[300], n100=counts[100], n50=counts[50], miss=counts[0], combo=env.max_combo,
+    return dict(acc=acc, lazer_acc=env.lazer_accuracy(), n300=counts[300], n100=counts[100], n50=counts[50], miss=counts[0], combo=env.max_combo,
                 max_combo=max_combo(bm), fc=counts[0] == 0 and env.max_combo == max_combo(bm),
                 head_miss=lost("head"), tail_miss=lost("tail"), spinner_miss=int(sum(s == 0 and bm.kinds[i] == SPINNER for i, _, s in env.judgements)))
 

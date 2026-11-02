@@ -10,6 +10,7 @@ K = 3  # upcoming objects in observation
 MISS_WINDOW = 400  # lazer OsuHitWindows.MISS_WINDOW: presses further than this from an object are ignored
 REWARD = {300: 1.0, 100: 0.4, 50: 0.1, 0: -1.0}
 NESTED_REWARD = {True: 0.1, False: -0.3}  # slider head / tick / repeat / tail
+ROOM_TAIL_REWARD = {True: 0.5, False: -0.5}  # without Classic a tail is worth half a circle (lazer base score 150 / 300)
 SPIN_REWARD = 0.5  # spread over the spins required to clear a spinner
 CLICK_PENALTY = -0.05
 SPIN_RADIUS = 50  # spinner shaping pulls the cursor onto this ring around the centre (autoplay spins there)
@@ -29,8 +30,11 @@ def k_from_obs(n):
 
 
 class OsuEnv(gym.Env):
-    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0, spin_shaping=False, spin_free_press=False, tail_miss=None, pool=(), pool_frac=0.0, k=K):
+    def __init__(self, beatmap=None, segment=40, hz=60, diff="narrow", timing=0.0, spin_shaping=False, spin_free_press=False, tail_miss=None, pool=(), pool_frac=0.0, k=K, classic=True):
         self.fixed = beatmap
+        # True: lazer with the Classic mod, as it judges our stable-format replays. False: no mods, the rules of an
+        # online room (slider heads judged on timing, sliders score through their nested objects, start-time note lock)
+        self.classic = classic
         self.diff = diff  # difficulty range of the random training maps, see beatmap.DIFF
         self.timing = timing  # max bonus for a centred circle hit, see TIMING_MS
         self.spin_shaping = spin_shaping  # distance shaping during spinners too, see SPIN_RADIUS
@@ -146,6 +150,8 @@ class OsuEnv(gym.Env):
 
     def _press(self, key):
         """lazer LegacyHitPolicy (classic note lock): the earliest object under the cursor takes the click."""
+        if not self.classic:
+            return self._press_room(key)
         for j in range(self.next, len(self.objs)):
             x, y, t = self.ox[j], self.oy[j], self.ot[j]
             if t - self.preempt > self.t:
@@ -162,16 +168,40 @@ class OsuEnv(gym.Env):
             return self._hit(j, err, key)
         return 0.0 if self.spin_free_press and self.spinning else CLICK_PENALTY
 
-    def _hit(self, i, err, key):
-        """Judge a circle / slider head; err=None means it timed out."""
+    def _press_room(self, key):
+        """lazer StartTimeOrderedHitPolicy (no Classic): the earliest hovered object takes the click. The last
+        earlier circle / slider head blocks it until that one's start time; a hit misses every earlier one."""
+        for j in range(self.next, len(self.objs)):
+            x, y, t = self.ox[j], self.oy[j], self.ot[j]
+            if t - self.preempt > self.t:
+                break
+            if self.started[j] or self.kl[j] == SPINNER or math.hypot(self.cursor[0] - x, self.cursor[1] - y) > self.r:
+                continue
+            err = self.t - t
+            earlier = [i for i in range(self.first_open, j) if self.kl[i] != SPINNER and self.ot[i] < t]
+            if abs(err) > MISS_WINDOW or (earlier and not self.started[earlier[-1]] and self.t < self.ot[earlier[-1]]):
+                return CLICK_PENALTY  # shake (no result yet / blocked); the press is still consumed
+            reward = self._hit(j, err, key)
+            for i in earlier:
+                if not self.started[i]:
+                    reward += self._hit(i, None, None, timed_out=False)  # MissForcefully
+            return reward
+        return 0.0 if self.spin_free_press and self.spinning else CLICK_PENALTY
+
+    def _hit(self, i, err, key, timed_out=None):
+        """Judge a circle / slider head; err=None means a miss (timed out unless told otherwise)."""
         self.started[i] = True
         e = np.inf if err is None else abs(err)
         w300, w100, w50 = self.w
-        if self.kinds[i] == SLIDER:  # classic mod: slider head is plain hit/miss within the 50 window
-            return self._start_slider(i, e <= w50, key if e <= w50 else None, timed_out=err is None)
-        self.done[i] = True
+        timed_out = err is None if timed_out is None else timed_out
+        if self.kinds[i] == SLIDER and self.classic:  # classic mod: slider head is plain hit/miss within the 50 window
+            return self._start_slider(i, e <= w50, key if e <= w50 else None, timed_out=timed_out)
         bonus = self.timing * max(0.0, 1 - e / TIMING_MS) if e <= w50 else 0.0
-        return self._judge(i, 300 if e <= w300 else 100 if e <= w100 else 50 if e <= w50 else 0) + bonus
+        reward = self._judge(i, 300 if e <= w300 else 100 if e <= w100 else 50 if e <= w50 else 0) + bonus
+        if self.kinds[i] == SLIDER:  # no Classic: the head is judged like a circle, then the slider goes on
+            return reward + self._start_slider(i, e <= w50, key if e <= w50 else None, timed_out=timed_out)
+        self.done[i] = True
+        return reward
 
     def _judge(self, i, score):
         self.judgements.append((i, self.t, score))
@@ -185,10 +215,16 @@ class OsuEnv(gym.Env):
     def _nested(self, s, time, kind, hit):
         self.nested_log.append((time, kind, hit))
         s["hits"] += hit
-        if kind != "tail":  # classic tail is a small tick: no combo
+        if kind == "head" and not self.classic:
+            return 0.0  # judged, scored and rewarded in _hit already
+        if kind != "tail":
             self._combo(hit)
+        elif hit and not self.classic:  # classic tail is a small tick: no combo; a room tail adds combo, its miss (IgnoreMiss) keeps it
+            self._combo(True)
         if kind == "tail" and not hit and self.tail_miss is not None:
             return self.tail_miss
+        if kind == "tail" and not self.classic:
+            return ROOM_TAIL_REWARD[hit]
         return NESTED_REWARD[hit]
 
     def _in_follow(self, sl, expanded):
@@ -253,7 +289,8 @@ class OsuEnv(gym.Env):
                 reward += self._nested(s, time, kind, s["tracking"])
             if not s["pending"] and self.t >= sl.end:  # lazer DrawableSlider judges itself only once its end time passes
                 frac = s["hits"] / s["total"]
-                reward += self._judge(s["idx"], 300 if frac == 1 else 0 if frac == 0 else 100 if frac >= 0.5 else 50)
+                if self.classic:  # without Classic the slider's own judgement is ignored
+                    reward += self._judge(s["idx"], 300 if frac == 1 else 0 if frac == 0 else 100 if frac >= 0.5 else 50)
                 self.done[s["idx"]] = True
                 self.active.remove(s)
         return reward
@@ -311,6 +348,16 @@ class OsuEnv(gym.Env):
     def _spin_progress(self, s):
         req = s["sp"].spins_required
         return 1.0 if req == 0 else min(1.0, self._total_rotation(s) / 360 / req)
+
+    def lazer_accuracy(self):
+        """lazer's accuracy: base score over its maximum, for the judgements that affect accuracy (ScoreProcessor)."""
+        got, top = sum(s for *_, s in self.judgements), 300 * len(self.judgements)
+        for _, kind, hit in self.nested_log:
+            if kind == "spin" or (kind == "head" and not self.classic):  # spinner ticks are bonus; a room head is in judgements
+                continue
+            base = (150 if not self.classic else 10) if kind == "tail" else 30  # SliderTailHit / SmallTickHit / LargeTickHit
+            got, top = got + base * hit, top + base
+        return got / top
 
     def _visible(self, i):
         return i < len(self.ot) and self.ot[i] - self.t <= self.preempt

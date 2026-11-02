@@ -54,10 +54,10 @@ class HybridPPO(PPO):
 class RealMapEval(BaseCallback):
     """Every `freq` steps: plays the real test map (eval/*) and the validation maps (val/*), logs judgement stats."""
 
-    def __init__(self, map_path, freq, hz, diff, pool, k=K):
+    def __init__(self, map_path, freq, hz, diff, pool, k=K, classic=True):
         super().__init__()
-        self.env = OsuEnv(parse_osu(map_path), hz=hz, k=k)
-        self.val_envs = [OsuEnv(bm, hz=hz, k=k) for bm in val_maps(diff, pool)]
+        self.env = OsuEnv(parse_osu(map_path), hz=hz, k=k, classic=classic)
+        self.val_envs = [OsuEnv(bm, hz=hz, k=k, classic=classic) for bm in val_maps(diff, pool)]
         self.freq, self.last = freq, 0
 
     def _on_step(self):
@@ -95,6 +95,7 @@ if __name__ == "__main__":
     p.add_argument("--diff", default="narrow", choices=["narrow", "wide"], help="CS / AR / OD range of training maps")
     p.add_argument("--k", type=int, default=K, help="number of upcoming objects in observation (default: 3)")
     p.add_argument("--lr-decay", action="store_true", help="learning rate falls linearly from 3e-4 to 0 over --steps")
+    p.add_argument("--room", action="store_true", help="online room rules (no Classic mod): slider heads judged on timing")
     args = p.parse_args()
     torch.set_num_threads(4)  # the default (all cores) fights the env worker processes: 4 was fastest on i7-13620H with 8 envs
 
@@ -109,7 +110,7 @@ if __name__ == "__main__":
     vec = dict(vec_env_cls=GroupedSubprocVecEnv, vec_env_kwargs=dict(workers=args.workers)) if args.workers else dict(vec_env_cls=SubprocVecEnv)
     env = make_vec_env(OsuEnv, n_envs=args.envs, seed=args.seed, env_kwargs=dict(hz=args.hz, diff=args.diff, timing=args.timing, spin_shaping=args.spin_shaping, spin_free_press=args.spin_free_press, tail_miss=args.tail_miss,
                                                                   pool=sorted(glob.glob(os.path.join(args.pool, "*.osu"))) if args.pool else (),
-                                                                  pool_frac=args.pool_frac, k=args.k), **vec)
+                                                                  pool_frac=args.pool_frac, k=args.k, classic=not args.room), **vec)
     # small MLP: CPU is faster than GPU for rollouts; only the updates gain from the GPU
     cls, device = (HybridPPO, "cuda") if args.device == "hybrid" else (PPO, "cpu")
     lr = get_linear_fn(3e-4, 0.0, 1.0) if args.lr_decay else 3e-4  # 3e-4: SB3's default
@@ -117,6 +118,6 @@ if __name__ == "__main__":
     model.set_logger(configure(run_dir, ["stdout", "csv"]))
     model.learn(int(args.steps), callback=[
         CheckpointCallback(500_000 // args.envs, os.path.join(run_dir, "ckpt")),
-        RealMapEval(args.eval_map, 250_000, args.hz, args.diff, args.pool, k=args.k),
+        RealMapEval(args.eval_map, 250_000, args.hz, args.diff, args.pool, k=args.k, classic=not args.room),
     ])
     model.save(os.path.join(run_dir, "model"))
