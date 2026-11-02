@@ -7,7 +7,7 @@ namespace osu.Game.Rulesets.Osu.Mods.RLBot
 {
     /// <summary>
     /// Pure C# evaluation engine for osu_rl MLP policy networks.
-    /// Zero external dependencies, SIMD/unrolled linear layers, ~5-10 microseconds per inference.
+    /// Zero external dependencies; plain loops over the two hidden layers.
     /// </summary>
     public class NeuralNetwork
     {

@@ -17,7 +17,7 @@ from beatmap import parse_osu
 from env import OsuEnv, k_from_obs
 from play import run
 from replay import KEY_BITS, write_osr
-from verify import DOTNET_ROOT, OSU_REPO
+from verify import DOTNET, DOTNET_ROOT, OSU_REPO
 
 # checkpoints of the Exp 012 run as difficulty levels (H6 validation acc in brackets)
 LEVELS = {
@@ -42,7 +42,7 @@ def lazer_score(osu_path, osr_path, mods, out_path):
     job = out_path + ".job"
     with open(job, "w", encoding="utf-8") as f:
         f.write("|".join([os.path.abspath(osu_path), os.path.abspath(osr_path), os.path.abspath(out_path), json.dumps(mods)]))
-    subprocess.run([os.path.join(DOTNET_ROOT, "dotnet.exe" if os.name == "nt" else "dotnet"), "test", "osu.Game.Rulesets.Osu.Tests", "--no-build",
+    subprocess.run([DOTNET, "test", "osu.Game.Rulesets.Osu.Tests", "--no-build",
                     "--filter", "FullyQualifiedName~TestSceneOsuRLLive"],
                    cwd=OSU_REPO, env=dict(os.environ, DOTNET_ROOT=DOTNET_ROOT, OSU_RL_LIVE_JOB=os.path.abspath(job)), check=True, capture_output=True)
     with open(out_path, encoding="utf-8") as f:

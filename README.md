@@ -178,7 +178,17 @@ python evaluate.py runs/<run> --hz 120
 python verify.py --fuzz 30 --noise 0 0.3 1.0 --hz 120 --out runs/verify/fuzz
 ```
 
-`verify.py` 預設在 `%LOCALAPPDATA%\Microsoft\dotnet10` 找 .NET 10，ppy/osu clone 的位置用 `OSU_REPO` 環境變數指定。
+`verify.py` 用 `DOTNET_ROOT` 環境變數找 .NET 10（沒設定時用 Windows 的 `%LOCALAPPDATA%\Microsoft\dotnet10`），ppy/osu clone 的位置用 `OSU_REPO` 環境變數指定。
+
+## 跟 AI 在 lazer 多人房一起打
+
+[live/](live/README.md) 讓 AI 用一個普通帳號連上 osu! 私人伺服器（例如 [Illyaverse](https://github.com/Illyavrs/Illyaverse)），跟玩家在同一個 lazer 多人房裡打：自動準備、即時排行看得到它、可以觀戰它的游標、結算有它的成績。分數由 headless lazer 計算，和真人打出來的完全同一套。
+
+```bash
+python -m live.service --port 8765
+```
+
+Discord 機器人透過 HTTP 控制它（進房、離開、換難度、單人打一張譜）；[live/tools.json](live/tools.json) 是 OpenAI function calling 格式的 tool 定義。設定方式、API 和 TS 範例見 [live/README.md](live/README.md)。
 
 ## 一起驗證假設
 
@@ -221,18 +231,24 @@ python run.py experiments/015-tail-miss.json --seed 2
 | [analyze.py](analyze.py) | 錯誤分析：依情境統計 miss / 100 / 50 |
 | [grouped_vec_env.py](grouped_vec_env.py) | 一個 process 跑多個 env（Exp 008） |
 | [dashboard.py](dashboard.py) | 區網狀態網頁（訓練 / 評估進度） |
+| [queue_runs.py](queue_runs.py) | 依序跑多個實驗 / seed |
+| [plot.py](plot.py) | 畫訓練曲線 |
+| [live/](live/README.md) | AI 玩家：連上私人伺服器的 lazer 多人房，給 Discord 機器人的 HTTP API 和 tool 定義 |
+| [lazer/](lazer/) | 放進 ppy/osu 的 headless 測試：判定比對（Replay）、AI 計分（Live）、RL Bot mod 測試（Bot） |
+| [merge_ppyosu/](merge_ppyosu/README.md) | 實驗性的 lazer「RL Bot」Automation mod（C# 推論，不連線） |
+| [experiments/](experiments/README.md) | 每個假設的設定檔 |
 | [RESEARCH.md](RESEARCH.md) | 研究紀錄：每個實驗的假設、設定、結果、觀察 |
 | `results/` | 最終模型、測試結果、lazer 判定過的 replay、訓練曲線 |
 
 ## 限制
 
 - 沒有 HP / 失敗：replay 播放時不會中途失敗，但真的玩會失敗。
-- 沒有 mods（HR / DT / HD …），也沒有計算分數，只算判定、acc、combo。
+- 只學過不開 mod 的譜（HR / DT / HD …）。模擬器本身只算判定、acc、combo；要 lazer 分數時（live/）交給 headless lazer 計算。
 - lazer 在 replay 兩幀之間的更新時間不固定。落在一幀最後 1 ms 內的事件，模擬器無法完全對齊；這類事件很少見。
 - 驗證用的是 lazer 的 headless 判定程式，和遊戲畫面播放是同一套程式碼，但沒有逐張人工觀看。
 
 ## 倫理
 
-這個專案只做離線訓練和 replay。不要在線上排行或多人遊戲用 bot 打譜：這違反 osu! 的規則，帳號會被封鎖，對其他玩家也不公平。
+不要在官方 osu! 伺服器用 bot 打譜：這違反 osu! 的規則，帳號會被封鎖，對其他玩家也不公平。[live/](live/README.md) 只用在伺服器管理員同意、玩家都知道對手是 AI 的私人伺服器上。
 
 測試譜的版權屬於原作者，所以不收錄在 repo 裡，用 `get_maps.py` 從 ppy/osu 的測試資源取得。

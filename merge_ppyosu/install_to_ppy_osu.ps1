@@ -50,7 +50,7 @@ if ($rulesetContent -notmatch "OsuModRLBot") {
     Write-Host "OsuModRLBot is already registered in OsuRuleset.cs." -ForegroundColor Green
 }
 
-# Note: .NET 10 SDK automatically embeds files in the Resources\ directory as EmbeddedResource.
+# The weights are not embedded: the generator loads model_weights.bin from the game's output folder copied above.
 
 Write-Host "=== Integration complete! ===" -ForegroundColor Cyan
 Write-Host "To build and run osu!lazer with RL Bot:"

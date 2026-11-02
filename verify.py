@@ -18,7 +18,8 @@ from play import oracle, run
 from replay import write_osr
 
 OSU_REPO = os.path.abspath(os.environ.get("OSU_REPO", "../ppy-osu"))
-DOTNET_ROOT = os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\dotnet10")
+DOTNET_ROOT = os.environ.get("DOTNET_ROOT") or os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\dotnet10")
+DOTNET = os.path.join(DOTNET_ROOT, "dotnet.exe" if os.name == "nt" else "dotnet")
 SIM_TO_LAZER = {300: "Great", 100: "Ok", 50: "Meh", 0: "Miss"}
 NESTED_KIND = {"SliderHeadCircle": "head", "SliderTick": "tick", "SliderRepeat": "repeat", "SliderTailCircle": "tail"}
 OBJECT_KIND = {0: "HitCircle", SLIDER: "Slider", SPINNER: "Spinner"}
@@ -28,7 +29,7 @@ def lazer_judge(jobs, jobs_file):
     """jobs: [(map.osu, replay.osr, out.csv)] -> [(header, rows)], all in one headless lazer run."""
     with open(jobs_file, "w") as f:
         f.write("\n".join("|".join(os.path.abspath(p) for p in job) for job in jobs))
-    subprocess.run([os.path.join(DOTNET_ROOT, "dotnet.exe"), "test", "osu.Game.Rulesets.Osu.Tests", "--filter", "FullyQualifiedName~TestSceneOsuRLReplay"],
+    subprocess.run([DOTNET, "test", "osu.Game.Rulesets.Osu.Tests", "--filter", "FullyQualifiedName~TestSceneOsuRLReplay"],
                    cwd=OSU_REPO, env=dict(os.environ, DOTNET_ROOT=DOTNET_ROOT, OSU_RL_JOBS=os.path.abspath(jobs_file)), check=True, capture_output=True)
     out = []
     for *_, csv in jobs:

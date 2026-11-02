@@ -1,7 +1,7 @@
 """Experiment Queue Runner for osu_rl.
 
 Allows scheduling and running multiple training experiments sequentially (overnight or in the background).
-Supports dynamic queue file (you can append new tasks to queue.txt while running),
+Reads the queue file once at start (append jobs before launching),
 and automatically updates runs/status.txt for the live web dashboard (dashboard.py).
 
 Usage examples:
@@ -11,7 +11,7 @@ Usage examples:
     # 2. Run multiple different experiments:
     python queue_runs.py experiments/015-tail-miss.json experiments/016-lookahead.json --seeds 1
 
-    # 3. Run from a queue text file (supports appending jobs dynamically while running):
+    # 3. Run from a queue text file:
     python queue_runs.py --file queue.txt
 
     # 4. Preview queue without executing:
