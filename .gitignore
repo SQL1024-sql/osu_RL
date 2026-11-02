@@ -14,3 +14,4 @@ data/
 # watch.py output (replays + a copy of the .osz)
 replays/
 scratch/
+live/.env

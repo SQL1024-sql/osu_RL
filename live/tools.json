@@ -1,0 +1,73 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "osu_ai_status",
+   "description": "Shows what the osu! AI player is doing now: which room it is in, its difficulty level, whether it is ready for the current map, whether it is playing, and its last result.",
+   "parameters": {"type": "object", "properties": {}, "additionalProperties": false}
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "osu_ai_list_rooms",
+   "description": "Lists the open lazer multiplayer rooms on the osu! server, so the AI can be sent into one.",
+   "parameters": {"type": "object", "properties": {}, "additionalProperties": false}
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "osu_ai_join_room",
+   "description": "Sends the AI player into a lazer multiplayer room. It gets ready on its own once it has prepared the room's current map (about 10-30 seconds), then plays every round the host starts.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "room_id": {"type": "integer", "description": "Room ID, from osu_ai_list_rooms or the room's link."},
+     "password": {"type": "string", "description": "Room password, if the room has one."},
+     "level": {"type": "string", "enum": ["easy", "normal", "hard", "expert"], "description": "How strong the AI plays. expert is its best (about 99% accuracy)."}
+    },
+    "required": ["room_id"],
+    "additionalProperties": false
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "osu_ai_leave_room",
+   "description": "Takes the AI player out of its current room.",
+   "parameters": {"type": "object", "properties": {}, "additionalProperties": false}
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "osu_ai_set_level",
+   "description": "Changes how strong the AI plays, from the next round on.",
+   "parameters": {
+    "type": "object",
+    "properties": {"level": {"type": "string", "enum": ["easy", "normal", "hard", "expert"]}},
+    "required": ["level"],
+    "additionalProperties": false
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "osu_ai_play_map",
+   "description": "Has the AI play one beatmap on its own (not in a room) and returns its accuracy, rank, score, combo, judgement counts and a replay download link. Takes about 10-30 seconds.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "beatmap_id": {"type": "integer", "description": "Beatmap (difficulty) ID on the osu! server."},
+     "level": {"type": "string", "enum": ["easy", "normal", "hard", "expert"]},
+     "mods": {"type": "array", "items": {"type": "object", "properties": {"acronym": {"type": "string"}}, "required": ["acronym"]}, "description": "Mods as lazer APIMod objects, e.g. [{\"acronym\": \"HD\"}]. The AI was trained without mods, so expect it to do worse with HR or DT."}
+    },
+    "required": ["beatmap_id"],
+    "additionalProperties": false
+   }
+  }
+ }
+]
