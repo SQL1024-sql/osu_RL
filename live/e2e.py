@@ -1,7 +1,9 @@
 """End-to-end check against a server: a tester account opens a lazer room, the AI joins and plays a round while the
-tester spectates, and the AI's live frames and room score are checked.
+tester spectates, and the AI's live frames and room score are checked. With --solo the AI plays the beatmap on its
+own while the tester watches it (as a stream would), and its events and solo score are checked.
 
     python -m live.e2e <beatmap id> <beatmap md5> [level]
+    python -m live.e2e <beatmap id> <beatmap md5> [level] --solo
 Needs OSU_RL_TESTER_USERNAME / OSU_RL_TESTER_PASSWORD besides the AI's settings (see live/README.md).
 """
 import asyncio
@@ -51,6 +53,36 @@ async def main(beatmap, md5, level):
         await tester.close()
 
 
+async def main_solo(beatmap, level):
+    env = settings()
+    tester = Api(env["OSU_RL_SERVER"])
+    await tester.login(env["OSU_RL_TESTER_USERNAME"], env["OSU_RL_TESTER_PASSWORD"])
+    spec = await tester.hub("spectator")
+    frames = []
+    spec.on("UserSentFrames", lambda user, bundle: frames.append(bundle["header"]))
+    ai = AiPlayer(env["OSU_RL_SERVER"], env["OSU_RL_AI_USERNAME"], env["OSU_RL_AI_PASSWORD"], level)
+    try:
+        await ai.start()
+        await spec.invoke("StartWatchingUser", ai.me["id"])
+        await ai.solo(beatmap)
+        seen = []
+        while not any(e["type"] in ("finished", "error") for e in seen):
+            seen += await ai.events_after(seen[-1]["id"] if seen else 0, 60)
+            if ai.live:
+                print(f"live: {ai.live['progress']:.0%} combo {ai.live['combo']} acc {ai.live['accuracy']:.2%}", flush=True)
+        types = [e["type"] for e in seen]
+        assert types[0] == "preparing" and "started" in types and types[-1] == "finished", types
+        assert frames, "no live frames reached the spectator"
+        assert ai.last_result and ai.last_result["score_id"], "the AI's solo score was not submitted"
+        print(f"ok: {len(frames)} frame bundles to the watcher, events {types.count('combo_break')} combo breaks, result {ai.last_result}")
+    finally:
+        await ai.close()
+        await spec.close()
+        await tester.close()
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
-    asyncio.run(main(int(sys.argv[1]), sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "expert"))
+    args = [a for a in sys.argv[1:] if a != "--solo"]
+    level = args[2] if len(args) > 2 else "expert"
+    asyncio.run(main_solo(int(args[0]), level) if "--solo" in sys.argv else main(int(args[0]), args[1], level))

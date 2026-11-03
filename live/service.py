@@ -80,6 +80,20 @@ def app(player, token):
         result = await asyncio.to_thread(prepare, osu, body.get("mods", []), body.get("level", player.level))
         return web.json_response(dict(summary(result), beatmap_id=body["beatmap_id"], beatmap_md5=hashlib.md5(osu).hexdigest()))
 
+    @routes.post("/solo")
+    async def solo(request):
+        body = await request.json()
+        return web.json_response(await player.solo(body["beatmap_id"], body.get("level"), body.get("mods", [])))
+
+    @routes.post("/stop")
+    async def stop(_):
+        return web.json_response(player.stop())
+
+    @routes.get("/events")
+    async def events(request):
+        after, wait = int(request.query.get("after", 0)), min(float(request.query.get("wait", 25)), 60)
+        return web.json_response(dict(events=await player.events_after(after, wait), last=player.event_id))
+
     @routes.get("/replays/{name}")
     async def replay(request):
         name = request.match_info["name"]

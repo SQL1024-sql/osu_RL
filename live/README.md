@@ -20,13 +20,19 @@ Discord 機器人 (TS) --tool call--> live/service.py (HTTP) --> live/player.py 
 
 分數和判定都是 lazer 自己的計分程式算出來的，跟真人用 lazer 打出來的格式和數字完全一樣。
 
-## 需要的東西
+## 安裝（第一次）
 
-- **Python**：專案的套件，加上 `aiohttp`（已寫進 `requirements.txt`）。
-- **.NET 10 和編好的 ppy-osu**：照主 README 的「驗證」步驟。另外把 `lazer/TestSceneOsuRLLive.cs` 複製到 `ppy-osu/osu.Game.Rulesets.Osu.Tests/`，然後執行 `dotnet build osu.Game.Rulesets.Osu.Tests`。ppy-osu 的位置用 `OSU_REPO` 環境變數指定，預設是 `../ppy-osu`。
-- **伺服器上的 AI 帳號**：在網站正常註冊就好。
+1. 在伺服器網站註冊 AI 的帳號（開台的話就是 Miyo 的 osu 帳號，名稱和頭像用她的）。
+2. 安裝 Python 套件（`pip install -r requirements.txt`）和 .NET 10 SDK（Windows：`winget install Microsoft.DotNet.SDK.10`）。
+3. 執行：
 
-## 設定（`live/.env` 或環境變數；`live/.env` 不會進 git）
+```bash
+python -m live.setup
+```
+
+它會問伺服器網址和 AI 帳號，產生控制金鑰，寫進 `live/.env`；ppy/osu 不在 `OSU_REPO`（預設 `../ppy-osu`）時，會下載測過的版本、放進計分用的 harness 並編譯（第一次要幾分鐘）；最後用 AI 帳號登入確認，並印出 Miyoria 要貼的設定。重跑不會重問，也不會換掉金鑰。
+
+## 設定（`live/.env` 或環境變數；`live/.env` 不會進 git，`live.setup` 會寫好）
 
 | 變數 | 意思 |
 |---|---|
@@ -38,10 +44,10 @@ Discord 機器人 (TS) --tool call--> live/service.py (HTTP) --> live/player.py 
 ## 啟動
 
 ```bash
-python -m live.service --port 8765
+python -m live.service
 ```
 
-只聽 `127.0.0.1`。如果 Discord 機器人在別台電腦，用 `--host 0.0.0.0`，前面再加 HTTPS 反向代理。
+預設聽 `127.0.0.1:8765`，跟 Miyoria 在同一台就不用改。Miyoria 在別台電腦時用 `--host 0.0.0.0`，兩台之間走 Tailscale（或 HTTPS 反向代理）。
 
 ## 給 Discord 機器人的接口
 
@@ -57,6 +63,18 @@ python -m live.service --port 8765
 | `osu_ai_play_map` | `POST /play` | `{beatmap_id, level?, mods?}` | acc、rank、分數、combo、判定統計、`replay_url` |
 
 `replay_url`（`/replays/<id>.osr`）不用金鑰就能下載，機器人可以直接把檔案貼到 Discord。
+
+直播用（Miyoria 的 osu game adapter 用這幾個，見 Miyoria 的 `extensions/osu/README.md`）：
+
+| HTTP | body / query | 做什麼 |
+|---|---|---|
+| `POST /solo` | `{beatmap_id, level?, mods?}` | AI 用自己的帳號單人打一張譜：準備好就照真實時間打，畫面推到伺服器，任何 lazer 客戶端都能觀戰它；打完送出成績。馬上回傳，過程看事件 |
+| `POST /stop` | | 停止單人打譜 |
+| `GET /events` | `?after=<id>&wait=<秒>` | 事件（long-poll，最多等 60 秒）：`preparing`、`started`、`combo_break`、`finished`、`aborted`、`error`。回傳 `{events, last}` |
+
+`GET /status` 的 `now` 是正在打的這張譜（曲名、進度、combo、準度、miss），照遊戲時間更新。
+
+**直播畫面**：在直播機開 lazer，用另一個帳號登入同一台伺服器，到 AI 帳號的個人頁按觀戰，OBS 擷取這個視窗。
 
 TS 範例（tool 名稱轉成 HTTP 呼叫）：
 
@@ -99,6 +117,14 @@ python -m live.e2e <beatmap id> <beatmap md5> [level]
 
 - 自動測試：Renatus Hard 和 Insane 兩張都完整跑完。
 - 真的 lazer 客戶端：進房後看得到 AI 已準備，比賽中即時排行有 AI，AI 的成績也存進房間。
+
+單人直播模式：
+
+```bash
+python -m live.e2e <beatmap id> - [level] --solo
+```
+
+測試帳號觀戰 AI，AI 單人打一張譜，檢查觀戰端收到畫面、事件順序（preparing → started → … → finished）和單人成績。2026-11-03 在本機 Illyaverse 測過 Renatus Hard：expert 打出 SS（1046 包畫面送到觀戰端，成績已存）。
 
 ## 已知限制
 

@@ -6,6 +6,7 @@
 """
 import argparse
 import os
+import shutil
 import subprocess
 from collections import Counter
 
@@ -18,7 +19,9 @@ from play import oracle, run
 from replay import write_osr
 
 OSU_REPO = os.path.abspath(os.environ.get("OSU_REPO", "../ppy-osu"))
-DOTNET_ROOT = os.environ.get("DOTNET_ROOT") or os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\dotnet10")
+_LOCAL_DOTNET = os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\dotnet10")
+DOTNET_ROOT = (os.environ.get("DOTNET_ROOT") or (_LOCAL_DOTNET if os.path.isdir(_LOCAL_DOTNET) else None)
+               or os.path.dirname(os.path.realpath(shutil.which("dotnet") or _LOCAL_DOTNET)))
 DOTNET = os.path.join(DOTNET_ROOT, "dotnet.exe" if os.name == "nt" else "dotnet")
 SIM_TO_LAZER = {300: "Great", 100: "Ok", 50: "Meh", 0: "Miss"}
 NESTED_KIND = {"SliderHeadCircle": "head", "SliderTick": "tick", "SliderRepeat": "repeat", "SliderTailCircle": "tail"}

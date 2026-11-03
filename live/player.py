@@ -1,5 +1,7 @@
-"""The AI as a lazer player in a multiplayer room: it joins like a normal client, gets ready once its play is
-prepared, streams its live score and cursor while the others play, and submits its score at the end.
+"""The AI as a lazer player: in a multiplayer room it joins like a normal client, gets ready once its play is
+prepared, streams its live score and cursor while the others play, and submits its score at the end. On its own
+(solo) it plays one beatmap the same way, so anyone can spectate it from a lazer client (e.g. for a stream).
+While it plays, it narrates game events (started, combo breaks, finished) for the Discord bot.
 
 Room flow (server's MultiplayerUserState): Idle 0 -> Ready 1 -> WaitingForLoad 2 -> Loaded 3 -> ReadyForGameplay 4
 -> Playing 5 -> FinishedPlay 6 -> Results 7.
@@ -7,6 +9,7 @@ Room flow (server's MultiplayerUserState): Idle 0 -> Ready 1 -> WaitingForLoad 2
 import asyncio
 import hashlib
 import logging
+import re
 import time
 
 from live.hub import Api, HubError
@@ -14,10 +17,17 @@ from live.prepare import LEVELS, prepare
 
 log = logging.getLogger("live")
 IDLE, READY, LOADED, READY_FOR_GAMEPLAY, FINISHED_PLAY = 0, 1, 3, 4, 6
-PASSED = 3  # SpectatedUserState.Passed
+PASSED, QUIT = 3, 5  # SpectatedUserState
 SEND_EVERY_MS = 200  # lazer's SpectatorClient.TIME_BETWEEN_SENDS
 LEAD_MS = 1500  # frames go out this far ahead of the room's clock; viewers line them up by gameplay time
 VERSION_HASH = "osu_rl-ai"
+MISS = "1"  # HitResult.Miss in spectator headers
+
+
+def meta(osu):
+    """Artist, title, difficulty and mapper from the .osu bytes."""
+    found = dict(re.findall(r"^(Artist|Title|Version|Creator):(.*?)\s*$", osu.decode("utf-8", "replace"), re.M))
+    return dict(artist=found.get("Artist", ""), title=found.get("Title", ""), version=found.get("Version", ""), creator=found.get("Creator", ""))
 
 
 def bundles(play):
@@ -54,6 +64,9 @@ class AiPlayer:
         self.token = None
         self.playing = None
         self.last_result = None
+        self.live = None  # what is happening in the current play, see _narrate
+        self.events, self.event_id = [], 0
+        self.new_event = asyncio.Event()
 
     # --- control (the Discord bot's tools go through these) ---
 
@@ -87,6 +100,32 @@ class AiPlayer:
             self.playing.cancel()
         return self.status()
 
+    async def solo(self, beatmap_id, level=None, mods=()):
+        """Plays one beatmap on its own (not in a room), spectatable like any lazer player. Returns at once;
+        the play reports through events."""
+        if self.room:
+            raise ValueError("leave the room first")
+        if self.playing and not self.playing.done():
+            raise ValueError("already playing")
+        if level and level not in LEVELS:
+            raise ValueError(f"level must be one of {list(LEVELS)}")
+        self.playing = asyncio.create_task(self._solo(int(beatmap_id), level or self.level, list(mods)))
+        return self.status()
+
+    def stop(self):
+        if self.playing and not self.room:
+            self.playing.cancel()
+        return self.status()
+
+    async def events_after(self, after, wait=25.0):
+        """Events with id > after; waits up to `wait` seconds for one."""
+        if not any(e["id"] > after for e in self.events):
+            try:
+                await asyncio.wait_for(self.new_event.wait(), wait)
+            except TimeoutError:
+                pass
+        return [e for e in self.events if e["id"] > after]
+
     def set_level(self, level):
         if level not in LEVELS:
             raise ValueError(f"level must be one of {list(LEVELS)}")
@@ -98,7 +137,7 @@ class AiPlayer:
         item = self._item()
         return dict(user=self.me and self.me["username"], room=self.room and self.room.get("roomID"), level=self.level,
                     beatmap=item and item.get("beatmapID"), ready=bool(self.play), playing=bool(self.playing and not self.playing.done()),
-                    last_result=self.last_result)
+                    now=self.live, last_result=self.last_result)
 
     # --- room events ---
 
@@ -123,7 +162,7 @@ class AiPlayer:
             raise HubError("downloaded .osu does not match the room's checksum")
         mods = item.get("requiredMods") or []
         play = await asyncio.to_thread(prepare, osu, mods, self.level)
-        play.update(mods=mods, item=item)
+        play.update(mods=mods, item=item, meta=meta(osu))
         self.play = play
         await self.mp.invoke("ChangeBeatmapAvailability", {"state": 4, "downloadProgress": None})  # LocallyAvailable
         await self._ready()
@@ -188,26 +227,90 @@ class AiPlayer:
 
     async def _play(self, play, token, room):
         item = play["item"]
+        await self._stream(play, token)
+        body = dict(play["submission"], mods=play["mods"])
+        result = await self.api.request("PUT", f"/api/v2/rooms/{room}/playlist/{item['id']}/scores/{token}", json=body)
+        self._finish(play, result)
+        await self.mp.invoke("ChangeState", FINISHED_PLAY)  # the round's results open once everyone is here
+
+    async def _solo(self, beatmap_id, level, mods):
+        try:
+            osu = await self.api.request("GET", f"/osu/{beatmap_id}", raw=True)
+            md5 = hashlib.md5(osu).hexdigest()
+            self._emit("preparing", beatmap_id=beatmap_id, level=level, **meta(osu))
+            play = await asyncio.to_thread(prepare, osu, mods, level)
+            play.update(mods=mods, item=dict(beatmapID=beatmap_id, rulesetID=0, beatmapChecksum=md5), meta=meta(osu))
+            r = await self.api.request("POST", f"/api/v2/beatmaps/{beatmap_id}/solo/scores", data=dict(
+                version_hash=VERSION_HASH, beatmap_hash=md5, ruleset_id="0"))
+            await self._stream(play, r["id"])
+            result = await self.api.request("PUT", f"/api/v2/beatmaps/{beatmap_id}/solo/scores/{r['id']}", json=dict(play["submission"], mods=mods))
+            self._finish(play, result)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log.exception("solo play failed")
+            self._emit("error", beatmap_id=beatmap_id, message=str(e))
+
+    async def _stream(self, play, token):
+        """Sends the play as a spectator stream in real time (lazer's play session), narrating as it goes."""
+        item = play["item"]
         state = {"beatmapID": item["beatmapID"], "rulesetID": item.get("rulesetID", 0), "mods": play["mods"], "state": 1,
                  "maximumStatistics": play["maximumStatistics"]}
         await self.spectator.invoke("BeginPlaySessionV2", token, state)
-        start_ms = min(0, play["frames"][0][0])  # the room's gameplay clock starts here (lead-in before the first object)
+        start_ms = min(0, play["frames"][0][0])  # the gameplay clock starts here (lead-in before the first object)
         t0 = time.monotonic()
-        for at, bundle in bundles(play):
-            delay = (at - start_ms - LEAD_MS) / 1000 - (time.monotonic() - t0)
-            if delay > 0:
-                await asyncio.sleep(delay)
-            await self.spectator.send("SendFrameDataV2", token, bundle)
-        end = (play["frames"][-1][0] - start_ms) / 1000 - (time.monotonic() - t0)
-        await asyncio.sleep(max(0, end))
-        await self.spectator.invoke("EndPlaySessionV2", token, PASSED)
-        body = dict(play["submission"], mods=play["mods"])
-        result = await self.api.request("PUT", f"/api/v2/rooms/{room}/playlist/{item['id']}/scores/{token}", json=body)
-        s = play["submission"]
+        narrator = asyncio.create_task(self._narrate(play, t0, start_ms))
+        try:
+            for at, bundle in bundles(play):
+                delay = (at - start_ms - LEAD_MS) / 1000 - (time.monotonic() - t0)
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                await self.spectator.send("SendFrameDataV2", token, bundle)
+            end = (play["frames"][-1][0] - start_ms) / 1000 - (time.monotonic() - t0)
+            await asyncio.sleep(max(0, end))
+            await narrator
+            await self.spectator.invoke("EndPlaySessionV2", token, PASSED)
+        except asyncio.CancelledError:
+            narrator.cancel()
+            self.live = None
+            self._emit("aborted", beatmap_id=item["beatmapID"])
+            try:
+                await self.spectator.invoke("EndPlaySessionV2", token, QUIT)
+            except HubError:
+                pass
+            raise
+
+    async def _narrate(self, play, t0, start_ms):
+        """Follows the play's scoring timeline in gameplay time: keeps self.live current and emits events."""
+        info = dict(beatmap_id=play["item"]["beatmapID"], level=play["level"], mods=[m["acronym"] for m in play["mods"]], **play.get("meta", {}))
+        end = play["frames"][-1][0]
+        self.live = dict(info, progress=0.0, combo=0, max_combo=0, accuracy=1.0, misses=0)
+        self._emit("started", **info)
+        combo = 0
+        for h in play["headers"]:
+            await asyncio.sleep(max(0.0, t0 + (h["time"] - start_ms) / 1000 - time.monotonic()))
+            misses = h["statistics"].get(MISS, 0)
+            if h["combo"] < combo:
+                self._emit("combo_break", combo=combo, misses=misses, accuracy=h["accuracy"])
+            combo = h["combo"]
+            self.live.update(progress=round(min(1.0, max(0.0, h["time"] / end)), 3), combo=combo, max_combo=h["maxCombo"],
+                             accuracy=h["accuracy"], misses=misses)
+
+    def _finish(self, play, result):
+        s, item = play["submission"], play["item"]
+        stats = s["statistics"]
         self.last_result = dict(beatmap=item["beatmapID"], level=play["level"], accuracy=s["accuracy"], rank=s["rank"], total_score=s["total_score"],
-                                max_combo=s["max_combo"], statistics=s["statistics"], score_id=result.get("id"))
+                                max_combo=s["max_combo"], statistics=stats, score_id=result.get("id"))
+        self.live = None
+        self._emit("finished", **play.get("meta", {}), **{k: v for k, v in self.last_result.items() if k != "statistics"},
+                   misses=stats.get("miss", 0), full_combo=not stats.get("miss") and not stats.get("large_tick_miss"))
         log.info("finished: %s", self.last_result)
-        await self.mp.invoke("ChangeState", FINISHED_PLAY)  # the round's results open once everyone is here
+
+    def _emit(self, type, **data):
+        self.event_id += 1
+        self.events = [*self.events[-199:], dict(id=self.event_id, type=type, time=time.time(), **data)]
+        self.new_event.set()
+        self.new_event = asyncio.Event()
 
     async def close(self):
         for h in (self.mp, self.spectator):

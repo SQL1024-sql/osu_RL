@@ -71,8 +71,9 @@ def prepare(osu_bytes, mods=(), level="expert"):
     play["frames"] = [(round(t), round(float(x), 2), round(float(y), 2), sum(b for b, k in zip(KEY_BITS, keys) if k)) for t, x, y, keys in frames]
     play["level"] = level
     play["replay"] = key + ".osr"
-    with open(path, "w", encoding="utf-8") as f:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=CACHE, suffix=".tmp", delete=False) as f:
         json.dump(play, f)
+    os.replace(f.name, path)  # a second request for the same map may be preparing it at the same time
     return play
 
 
