@@ -24,13 +24,13 @@
 | `OsuRLBotGenerator.cs` | 讀取 lazer 的 `OsuBeatmap`，特徵化後餵入神經網路產生 Replay 幀 |
 | `NeuralNetwork.cs` | 純 C# 矩陣相乘與 Tanh 前向傳播引擎 |
 | `model_weights.bin` | 從最佳模型（`best_model_h6.zip`）匯出的純權重二進位檔（約 300 KB） |
-| `install_to_ppy_osu.ps1` | 一鍵安裝/同步到 `..\ppy-osu` 的 PowerShell 腳本 |
+| `install_to_ppy_osu.ps1` | 一鍵安裝/同步到 ppy/osu clone 的 PowerShell 腳本（預設是跟 osu_rl 同一層的 `ppy-osu`，可用 `-OsuRepo` 指定） |
 
 ---
 
 ## 一鍵安裝與編譯
 
-在 PowerShell 中執行：
+在 osu_rl 資料夾的 PowerShell 中執行（ppy/osu 放在同一層的 `ppy-osu`）：
 
 ```powershell
 # 1. 執行安裝腳本（將 Mod 原始碼與權重複製到 ppy-osu 並註冊）

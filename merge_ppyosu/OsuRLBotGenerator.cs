@@ -55,7 +55,6 @@ namespace osu.Game.Rulesets.Osu.Replays
             {
                 Path.Combine(AppContext.BaseDirectory, "model_weights.bin"),
                 Path.Combine(AppContext.BaseDirectory, "merge_ppyosu", "model_weights.bin"),
-                @"merge_ppyosu\model_weights.bin"
             };
 
             foreach (var path in candidatePaths)

@@ -1,6 +1,6 @@
 # Copyright (c) osu_rl. Licensed under the MIT Licence.
 param(
-    [string]$OsuRepo = "..\ppy-osu"
+    [string]$OsuRepo = (Join-Path $PSScriptRoot "..\..\ppy-osu")  # a ppy/osu clone next to osu_rl
 )
 
 $ErrorActionPreference = "Stop"
