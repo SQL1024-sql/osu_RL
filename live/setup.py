@@ -99,6 +99,8 @@ All set. Start the AI player with:
 
 Miyoria (miyoria.toml), when it runs on this machine:
     [extensions."miyoria.osu"]
+    account = "{env['OSU_RL_AI_USERNAME']}"
+    blocked_accounts = []   # your own osu! accounts, which the AI must never use
     env = {{ MIYORIA_OSU_TOKEN = "{env['OSU_RL_CONTROL_TOKEN']}" }}
 (on another machine also set url = "http://<this machine>:8765" and start the service with --host 0.0.0.0)
 """)
