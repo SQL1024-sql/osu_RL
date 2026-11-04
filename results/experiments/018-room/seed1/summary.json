@@ -1,0 +1,87 @@
+{
+ "experiment": "018-room",
+ "seed": 1,
+ "run": "20261104-0022-018-room-s1",
+ "ckpt": "rl_model_9000000_steps.zip",
+ "val": {
+  "ckpt": "rl_model_9000000_steps.zip",
+  "acc": 0.9890506602138774,
+  "miss": 6
+ },
+ "real": {
+  "acc": 0.9957914668606503,
+  "lazer_acc": 0.9898772559100215,
+  "fc": 2,
+  "miss": 17,
+  "n100": 14,
+  "head_miss": 6,
+  "tail_miss": 60,
+  "spinner_miss": 4
+ },
+ "hf": {
+  "acc": 0.9975538973614612,
+  "lazer_acc": 0.9939301914606032,
+  "fc": 10,
+  "miss": 12
+ },
+ "config": {
+  "args": {
+   "steps": 20000000.0,
+   "envs": 8,
+   "workers": 0,
+   "seed": 1,
+   "hz": 120,
+   "gamma": 0.995,
+   "eval_map": "maps/test/renatus_insane.osu",
+   "name": "018-room-s1",
+   "timing": 0.3,
+   "spin_shaping": true,
+   "spin_free_press": true,
+   "device": "hybrid",
+   "tail_miss": null,
+   "pool": "maps/hf/train",
+   "pool_frac": 0.5,
+   "diff": "wide",
+   "k": 3,
+   "lr_decay": false,
+   "room": true
+  },
+  "ppo": {
+   "n_steps": 1024,
+   "batch_size": 2048,
+   "gamma": 0.995,
+   "policy_kwargs": {
+    "net_arch": [
+     256,
+     256
+    ]
+   }
+  },
+  "env": {
+   "MAX_CURSOR_SPEED": 4.8,
+   "K": 3,
+   "MISS_WINDOW": 400,
+   "REWARD": {
+    "300": 1.0,
+    "100": 0.4,
+    "50": 0.1,
+    "0": -1.0
+   },
+   "NESTED_REWARD": {
+    "true": 0.1,
+    "false": -0.3
+   },
+   "SPIN_REWARD": 0.5,
+   "CLICK_PENALTY": -0.05,
+   "SHAPING": 1.0,
+   "CURSOR_MARGIN": 100,
+   "LOOKAHEAD_MS": [
+    50,
+    150
+   ],
+   "TIMING_MS": 25,
+   "SPIN_RADIUS": 50
+  },
+  "torch": "2.14.1+cu130"
+ }
+}
