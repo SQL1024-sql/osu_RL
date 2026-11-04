@@ -1,8 +1,10 @@
 """Virtual tablet output through the VMulti driver (https://github.com/X9VoiD/vmulti-bin): an OS-level absolute
 pointer with two buttons, like a pen tablet. Nothing touches the game process.
 
-    python -m live.tablet           # draws a circle around the screen centre, prints the OS cursor lag
-    python -m live.tablet --click   # also alternates M1 / M2 (only run it with lazer in front)
+Everything that sends stops the moment lazer is not the window in front.
+
+    python -m live.tablet           # with lazer in front: draws a circle around the screen centre, prints the OS cursor lag
+    python -m live.tablet --click   # also alternates M1 / M2
 """
 import ctypes
 import math
@@ -51,17 +53,52 @@ def control_path():
     sys.exit("VMulti control device not found. Install https://github.com/X9VoiD/vmulti-bin/releases/latest")
 
 
+def lazer_window():
+    """The visible window whose title starts with "osu!" (lazer adds the map's name while playing)."""
+    found = []
+
+    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+    def visit(hwnd, _):
+        title = ctypes.create_unicode_buffer(256)
+        user32.GetWindowTextW(ctypes.c_void_p(hwnd), title, 256)
+        if user32.IsWindowVisible(ctypes.c_void_p(hwnd)) and title.value.startswith("osu!"):
+            found.append(hwnd)
+        return True
+
+    user32.EnumWindows(visit, None)
+    if not found:
+        raise SystemExit("no lazer window (title starting with osu!)")
+    return ctypes.c_void_p(found[0])
+
+
+class LostFocus(RuntimeError):
+    pass
+
+
 class Tablet:
-    """Absolute position in screen pixels plus M1/M2, sent as one VMulti report per call."""
+    """Absolute position in screen pixels plus M1/M2, sent as one VMulti report per call. Input goes to whatever
+    window is in front, so every send first checks that lazer is; otherwise it lets go of the buttons and raises
+    LostFocus instead of moving or clicking anything else."""
 
     def __init__(self):
         self.h = wintypes.HANDLE(control_path())
+        self.window = lazer_window().value
+        user32.GetForegroundWindow.restype = ctypes.c_void_p
         m = user32.GetSystemMetrics
         self.left, self.top, self.width, self.height = m(76), m(77), m(78), m(79)  # the virtual screen
         self.buf = (ctypes.c_ubyte * REPORT_LEN)()
         self.buttons = 0
 
     def send(self, x, y, buttons=None):
+        if user32.GetForegroundWindow() != self.window:
+            self.release()
+            raise LostFocus("osu! is not the window in front; stopped")
+        self._write(x, y, buttons)
+
+    def release(self):
+        self._write(*cursor(), 0)  # where the cursor already is: lets go of the buttons without moving it
+
+    def _write(self, x, y, buttons=None):
         if buttons is not None:
             self.buttons = buttons
         nx = round((x - self.left) * 32767 / (self.width - 1))
@@ -74,9 +111,7 @@ class Tablet:
             raise OSError(ctypes.get_last_error(), "VMulti write failed")
 
     def close(self):
-        p = wintypes.POINT()
-        user32.GetCursorPos(ctypes.byref(p))
-        self.send(p.x, p.y, 0)  # never leave a button held
+        self.release()  # never leave a button held
         k32.CloseHandle(self.h)
 
 

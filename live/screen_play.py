@@ -8,7 +8,7 @@ Start it, then start the same map in lazer (background dim 100%, no mods). It wa
 """
 import argparse
 import ctypes
-import statistics
+import json
 import threading
 import time
 
@@ -17,29 +17,11 @@ import numpy as np
 
 from beatmap import SPINNER, parse_osu
 from live.prepare import LEVELS, prepare
-from live.tablet import M1, M2, Tablet
+from live.tablet import M1, M2, LostFocus, Tablet, lazer_window
 
 user32 = ctypes.WinDLL("user32")
 WATCH_BEFORE, WATCH_AFTER = 0.25, 0.15  # seconds of samples around each fade-in
 DARK = 12  # mean brightness (0-255) of a gameplay playfield with a fully dimmed background
-
-
-def lazer_window():
-    """The visible window whose title starts with "osu!" (lazer adds the map's name while playing)."""
-    found = []
-
-    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
-    def visit(hwnd, _):
-        title = ctypes.create_unicode_buffer(256)
-        user32.GetWindowTextW(ctypes.c_void_p(hwnd), title, 256)
-        if user32.IsWindowVisible(ctypes.c_void_p(hwnd)) and title.value.startswith("osu!"):
-            found.append(hwnd)
-        return True
-
-    user32.EnumWindows(visit, None)
-    if not found:
-        raise SystemExit("no lazer window (title starting with osu!)")
-    return ctypes.c_void_p(found[0])
 
 
 class Playfield:
@@ -60,35 +42,84 @@ class Playfield:
         return self.x0 + x * self.scale, self.y0 + y * self.scale
 
 
+def seg_dist(p, a, b):
+    ab = b - a
+    u = np.clip(np.dot(p - a, ab) / max(np.dot(ab, ab), 1e-9), 0, 1)
+    return np.hypot(*(a + u * ab - p))
+
+
 def fade_ins(bm):
-    """[(appear_s, fade_s, x, y)] for hit circles and slider heads no other object overlaps while they fade in."""
-    preempt = bm.preempt
+    """[(appear_s, fade_s, x, y)] for hit circles and slider heads whose patch nothing else crosses while they fade
+    in: no other object, approach circle or follow point line."""
+    preempt, r = bm.preempt, bm.radius
     fade = 400 * min(1, preempt / 450)
     shapes = [np.array([[ox, oy]]) if i not in bm.sliders else np.vstack([[ox, oy], bm.sliders[i].path[::4]])
               for i, (ox, oy, _) in enumerate(bm.objects)]
+    playable = [j for j in range(len(bm.objects)) if bm.kinds[j] != SPINNER]
     out = []
-    for i, (x, y, t) in enumerate(bm.objects):
-        if bm.kinds[i] == SPINNER:
-            continue
+    for i in playable:
+        x, y, t = bm.objects[i]
+        p = np.array([x, y])
         a, b = t - preempt - 50, t - preempt + fade + 100
-        clear = all(bm.objects[j][2] - preempt > b or bm.ends[j] + 300 < a
-                    or bm.kinds[j] != SPINNER and np.min(np.hypot(*(shapes[j] - (x, y)).T)) > 2.2 * bm.radius
-                    for j in range(len(bm.objects)) if j != i)
-        if clear:
+
+        def clear(j):
+            tj = bm.objects[j][2]
+            if tj - preempt > b or bm.ends[j] + 300 < a:
+                return True  # not on screen meanwhile
+            if bm.kinds[j] == SPINNER or np.min(np.hypot(*(shapes[j] - p).T)) < 2.2 * r:
+                return False
+            # j's approach circle shrinks from 4r to r around its head; does its ring pass over the patch?
+            lo, hi = max(a, tj - preempt), min(b, tj)
+            if lo < hi:
+                ring = [r * (1 + 3 * (tj - s) / preempt) for s in (lo, hi)]
+                if ring[1] - 0.6 * r < np.hypot(*(bm.objects[j][:2] - p)) < ring[0] + 0.6 * r:
+                    return False
+            return True
+
+        follow = all(seg_dist(p, shapes[j][-1], shapes[k][0]) > r
+                     for j, k in zip(playable, playable[1:])
+                     if j != i and k != i and bm.objects[j][2] - preempt < b and bm.objects[k][2] > a)
+        if follow and all(clear(j) for j in range(len(bm.objects)) if j != i):
             out.append(((t - preempt) / 1000, fade / 1000, x, y))
     return out
 
 
 class Clock(threading.Thread):
-    """Finds offset = wall clock - game clock (seconds) from the fade-ins it sees; None until the first one."""
+    """Finds wall clock - game clock (seconds) from the fade-ins it sees: one robust line through all of them, so
+    the noise of single fade-ins averages out instead of moving the clock around."""
 
     def __init__(self, events, field, radius, cursor):
         super().__init__(daemon=True)
         self.events, self.field, self.radius, self.cursor = events, field, radius, cursor
-        self.offset, self.samples = None, []
+        self.fits = []  # (appear game time, wall - game, amp, rms)
+        self.model = None  # (intercept, slope) of wall - game against game time
+
+    @property
+    def offset(self):
+        return None if self.model is None else self.model[0]
+
+    def at(self, game):
+        icept, slope = self.model
+        return icept + slope * game
+
+    def refit(self):
+        g, o = (np.array(c) for c in zip(*[(f[0], f[1]) for f in self.fits]))
+        keep = np.ones(len(g), bool)
+        for _ in range(3):
+            if keep.sum() >= 20 and np.ptp(g[keep]) > 20:
+                slope, icept = np.polyfit(g[keep], o[keep], 1)
+                if abs(slope) > 1e-3:  # more than 1 ms per second is not clock drift
+                    slope, icept = 0.0, float(np.median(o[keep]))
+            else:
+                slope, icept = 0.0, float(np.median(o[keep]))
+            resid = o - (icept + slope * g)
+            mad = max(0.003, 1.4826 * float(np.median(np.abs(resid[keep]))))
+            keep = np.abs(resid) < 3 * mad
+        self.model = (float(icept), float(slope))
 
     def grab(self, sct, box):
-        return float(np.asarray(sct.grab(box))[:, :, :3].mean())
+        v = float(np.asarray(sct.grab(box))[:, :, :3].mean())
+        return v, time.perf_counter()  # GDI capture waits for the next composition: the image is from about now
 
     def run(self):
         f = self.field
@@ -97,43 +128,43 @@ class Clock(threading.Thread):
             whole = {"left": int(x0), "top": int(y0), "width": int(512 * f.scale), "height": int(384 * f.scale)}
             dark_since = None
             while dark_since is None or time.perf_counter() - dark_since < 0.3:  # gameplay has started
-                dark = self.grab(sct, whole) < DARK + 3
+                dark = self.grab(sct, whole)[0] < DARK + 3
                 dark_since = (dark_since or time.perf_counter()) if dark else None
                 time.sleep(0.02)
             half = max(4, int(0.3 * self.radius * f.scale))
             for appear, fade, x, y in self.events:
                 cx, cy = f(x, y)
                 box = {"left": int(cx) - half, "top": int(cy) - half, "width": 2 * half, "height": 2 * half}
-                if self.offset is not None:
-                    start = self.offset + appear - WATCH_BEFORE
+                if self.model is not None:
+                    start = self.at(appear) + appear - WATCH_BEFORE
                     if time.perf_counter() > start:
                         continue
                     time.sleep(max(0.0, start - time.perf_counter()))
                     end = start + WATCH_BEFORE + fade + WATCH_AFTER
-                elif self.grab(sct, box) > DARK:
+                elif self.grab(sct, box)[0] > DARK:
                     continue  # already showing: this one cannot be the first fade-in we see
                 else:
                     end = None
                 samples = []
                 while True:
-                    now = time.perf_counter()
-                    b = self.grab(sct, box)
+                    b, now = self.grab(sct, box)
                     px, py = self.cursor()
                     samples.append((now, b, np.hypot(px - cx, py - cy) < half + 40 * f.scale))
                     if end is None and b > 2 * DARK:
                         end = now + fade + 0.05  # the first fade-in, watched from the dark screen on
                     if end is not None and now > end:
                         break
-                if end is not None and self.offset is None:
+                if self.model is None:
                     samples = [s for s in samples if s[0] > end - fade - 0.05 - WATCH_BEFORE]
-                t0 = fit(samples, fade)
-                if t0 is not None:
-                    self.samples.append(t0 - appear)
-                    self.offset = statistics.median(self.samples[-15:])
+                got = fit(samples, fade)
+                if got is not None:
+                    self.fits.append((appear, got[0] - appear, *got[1:]))
+                    self.refit()
 
 
 def fit(samples, fade):
-    """Wall time a fade-in started: the best fit of flat, then a linear rise over `fade` seconds, then flat."""
+    """(wall time a fade-in started, its brightness rise, fit rms): the best fit of flat, then a linear rise over
+    `fade` seconds, then flat; None when the patch does not look like a clean fade-in."""
     t, b, near = (np.array(c) for c in zip(*samples))
     t, b = t[~near], b[~near]
     if len(t) < 20:
@@ -150,20 +181,27 @@ def fit(samples, fade):
     k = int(np.argmin(err))
     if amp[k] < 15 or np.sqrt(err[k]) > 0.15 * amp[k]:  # no clean fade-in (something else moved through the patch)
         return None
-    return float(t0s[k])
+    return float(t0s[k]), float(amp[k]), float(np.sqrt(err[k]))
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("map")
     p.add_argument("--level", default="expert", choices=LEVELS)
-    p.add_argument("--lag-ms", type=float, default=0.0, help="send every move this much later (negative: earlier)")
+    p.add_argument("--lag-ms", type=float, default=None,
+                   help="send every move this much later (negative: earlier); default: minus the measured loop latency")
     p.add_argument("--seconds", type=float, default=1e9, help="stop after this much of the map")
+    p.add_argument("--log", help="write every fade-in fit here (json)")
     args = p.parse_args()
 
     osu = open(args.map, "rb").read()
     play = prepare(osu, level=args.level)
     print(f"simulated in lazer: {play['submission']['accuracy']:.2%}, {len(play['frames'])} moves")
+    if args.lag_ms is None:
+        from live.latency import measure  # live.latency imports this module
+        print("measuring the loop latency (lazer must show its cursor, e.g. song select) ...")
+        # the fade-ins are seen late by the same display and capture path, and the moves arrive late by the input path
+        args.lag_ms = -float(np.median(measure(20)))
     bm = parse_osu(args.map)
     events = fade_ins(bm)
     field = Playfield()
@@ -171,16 +209,16 @@ def main():
     pos = [0.0, 0.0]
     clock = Clock(events, field, bm.radius, lambda: pos)
     clock.start()
-    print(f"{len(events)} clean fade-ins to time the game by; start the map in lazer now")
-    while clock.offset is None:
+    print(f"lag {args.lag_ms:.1f} ms; {len(events)} clean fade-ins to time the game by; start the map in lazer now")
+    while clock.model is None:
         time.sleep(0.005)
-    print(f"game clock found ({len(clock.samples)} fade-in)")
+    print("game clock found")
     lag = args.lag_ms / 1000
     try:
         for t, x, y, keys in play["frames"]:
             if t > args.seconds * 1000:
                 break
-            due = clock.offset + t / 1000 + lag
+            due = clock.at(t / 1000) + t / 1000 + lag
             wait = due - time.perf_counter()
             if wait < -0.05:
                 continue  # already past
@@ -190,11 +228,19 @@ def main():
                     pass
             pos[:] = field(x, y)
             tablet.send(*pos, (M1 if keys & 1 else 0) | (M2 if keys & 2 else 0))
+    except LostFocus as e:
+        print(e)
     finally:
         tablet.close()
-    s = np.array(clock.samples) * 1000
-    print(f"timed by {len(s)} fade-ins, offset spread {s.std():.1f} ms (max-min {s.max() - s.min():.1f} ms)")
-    print("each one minus the first (ms):", " ".join(f"{v:.0f}" for v in s - s[0]))
+    g, o = (np.array(c) for c in zip(*[(f[0], f[1]) for f in clock.fits]))
+    resid = (o - np.array([clock.at(x) for x in g])) * 1000
+    icept, slope = clock.model
+    print(f"timed by {len(g)} fade-ins: drift {slope * 1e6:.0f} ppm, residuals median |{np.median(np.abs(resid)):.1f}| ms, "
+          f"{(np.abs(resid) > 15).sum()} beyond 15 ms")
+    if args.log:
+        with open(args.log, "w", encoding="utf-8") as fh:
+            json.dump({"lag_ms": args.lag_ms, "model": clock.model,
+                       "fits": [dict(zip(("appear", "offset", "amp", "rms"), f)) for f in clock.fits]}, fh)
 
 
 if __name__ == "__main__":
