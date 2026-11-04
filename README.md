@@ -154,6 +154,46 @@ python analyze.py results/<run>/best_model.zip maps/test/*.osu --hz 120
 python eval_hf.py results/<run> --hz 120
 ```
 
+### 只看畫面的學生（Exp 019）
+
+`student.py` 訓練一個只看畫面（`gpu_render.py` 畫出的 160×120 灰階畫面）的學生，模仿讀譜面的 RL 老師（DAgger），設計和成功標準在 [RESEARCH.md](RESEARCH.md) 的 Exp 019。
+
+需要 Linux 或 WSL2 和 NVIDIA GPU：
+
+1. 照 [pytorch.org](https://pytorch.org/get-started/locally/) 裝 CUDA 版 PyTorch，再裝其他套件：
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. 裝 Python 的開發標頭檔（Triton 編譯 GPU kernel 要用），版本跟你的 Python 一樣，例如 Python 3.12：
+
+   ```bash
+   sudo apt install python3.12-dev
+   ```
+
+3. 準備譜面：`maps/hf/`（train / val / test）和 `maps/test/`（26 張真實譜）。要跟之前的實驗用同一份切分，就從已經有的機器整個複製 `maps/` 過去；這些譜只能自己留著做研究，不要上傳或公開。
+
+4. 冒煙測試（幾分鐘，只確認流程跑得通，成績接近 0 是正常的）：
+
+   ```bash
+   python student.py --smoke --procs 4
+   ```
+
+5. 正式訓練。`--procs` 是同時跑模擬器的程序數，設成 CPU 核心數減 4 左右。訓練要跑幾個小時，用 `nohup` 讓它在斷線後繼續跑：
+
+   ```bash
+   mkdir -p runs && nohup python student.py --rounds 4 --maps 300 --updates 20000 --procs 12 > runs/019-student.log 2>&1 &
+   ```
+
+   ```bash
+   tail -f runs/019-student.log
+   ```
+
+   RTX 4060 筆電（16 執行緒）約 2 小時。每輪會印出收集了多少步、訓練速度和驗證準度。
+
+6. 結果在 `results/experiments/019-student/`：每輪的模型 `round0.pt`–`round3.pt`，以及 `summary.json`（挑到哪一輪、每輪的驗證準度、真實譜 / HF 測試譜 / 加 20 ms 延遲的 lazer 準度）。把 `summary.json` 和挑到的那一輪模型 commit 回來，再對照 RESEARCH.md 裡預先登記的三個標準記錄結果。
+
 評估與 lazer 驗證都需要 ppy/osu 的 clone 和 .NET 10 SDK：
 
 ```bash
