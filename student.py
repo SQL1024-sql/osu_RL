@@ -1,20 +1,24 @@
 """Exp 019: a student that plays from the screen alone, taught by the RL teacher (DAgger, "learning by cheating").
 
-The teacher (Exp 018 seed 1) reads the beatmap; the student sees only the last 4 frames lazer would show (render.py),
+The teacher (Exp 018 seed 1) reads the beatmap; the student sees only the last 4 frames lazer would show (gpu_render.py),
 plus where its own cursor is and how old the frames are. Every step of every rollout is labelled with what the
 teacher would do there, whoever was driving.
 
-    python student.py --rounds 4 --maps 300 --updates 20000      # in WSL, on the GPU
+Everything that can runs on the GPU: frames, the cursor dot, augmentation, and the teacher's and student's inference
+for all environments at once. Worker processes only step the simulator.
+
+    python student.py --rounds 4 --maps 300 --updates 20000      # Linux / WSL with CUDA
     python student.py --smoke                                    # a few minutes, checks the whole loop
 """
 import argparse
 import glob
 import json
 import os
+import queue
+import threading
 import time
-from multiprocessing import get_context
+from multiprocessing import Pipe, get_context
 
-import cv2
 import numpy as np
 import torch
 import torch.nn as nn
@@ -22,7 +26,8 @@ import torch.nn.functional as F
 
 from beatmap import parse_osu
 from env import OsuEnv, k_from_obs
-from render import H, PX, W, X0, Y0, Renderer
+from gpu_render import Scene, pack, render_fast
+from render import H, PX, W, X0, Y0
 
 HZ = 120
 DT = 1000 / HZ
@@ -30,39 +35,73 @@ N_FRAMES = 4
 MAX_LAT = 30.0  # ms
 TEACHER = "results/experiments/018-room/seed1/model.zip"
 SEL_SEED = 20_000  # the HF test sample of eval_hf.py / select_ckpt.py
+SLOTS = 8  # environments per worker process
+
+_scenes = {}
+
+
+def scene(path):
+    if path not in _scenes:
+        _scenes[path] = Scene(parse_osu(path))
+    return _scenes[path]
 
 
 # ---------------------------------------------------------------- what the student sees
 
-def observe(renderer, ts, cursors, i, lat, lag=0, radius=2.2, rng=None):
-    """(N_FRAMES, H, W) float frames ending `lat` ms before step i, with the cursor dot where the cursor was then
-    (`lag` steps later still, like a cursor sprite drawn a frame behind), and the aux input."""
-    out = np.empty((N_FRAMES, H, W), np.float32)
-    for j in range(N_FRAMES):
-        t = ts[i] - lat - j * DT
-        img = renderer.frame(t).astype(np.float32) / 255
-        k = max(0, int(np.searchsorted(ts, t - lag * DT, "right")) - 1)
-        c = ((cursors[k] - (X0, Y0)) * PX * 16).astype(np.int32)
-        cv2.circle(img, (int(c[0]), int(c[1])), int(radius * 16), 1.0, -1, cv2.LINE_AA, 4)
-        out[j] = img
+def prepare(items):
+    """CPU half of the student's input. items: [(map, times, cursors, i, lat, lag, radius)], times/cursors per step of
+    a play up to at least step i. -> packed render input, cursor dots, aux."""
+    frames, dots, aux = [], [], []
+    for path, ts, cur, i, lat, lag, rad in items:
+        sc = scene(path)
+        for j in range(N_FRAMES):
+            t = ts[i] - lat - j * DT
+            k = max(0, int(np.searchsorted(ts[:i + 1], t - lag * DT, "right")) - 1)
+            frames.append((sc, t))
+            dots.append((cur[k][0], cur[k][1], rad))
+        aux.append((cur[i][0] / 512, cur[i][1] / 384, lat / MAX_LAT))
+    return pack(frames, "cpu"), np.array(dots, np.float32), np.array(aux, np.float32)
+
+
+def build(prepared, device, rng=None):
+    """GPU half: render, draw the cursor dot, augment. -> frames (B, N_FRAMES, H, W), aux (B, 3)."""
+    p, dots, aux = prepared
+    p = {k: v.to(device, non_blocking=True) for k, v in p.items()}
+    img = render_fast(p).view(-1, N_FRAMES, H, W)
+    d = torch.from_numpy(dots).to(device).view(-1, N_FRAMES, 3, 1, 1)
+    gx = X0 + (torch.arange(W, device=device) + 0.5) / PX
+    gy = (Y0 + (torch.arange(H, device=device) + 0.5) / PX).view(H, 1)
+    dist = torch.sqrt((gx - d[:, :, 0]) ** 2 + (gy - d[:, :, 1]) ** 2) * PX  # frame pixels
+    img = torch.maximum(img, (d[:, :, 2] - dist + 0.5).clamp(0, 1))
     if rng is not None:
-        out = augment(out, rng)
-    aux = np.array([cursors[i][0] / 512, cursors[i][1] / 384, lat / MAX_LAT], np.float32)
-    return out, aux
+        img = augment(img, rng)
+    return img, torch.from_numpy(aux).to(device)
 
 
 def augment(x, rng):
-    x = x * rng.uniform(0.75, 1.25)
-    if rng.random() < 0.3:
-        s = rng.uniform(0.3, 0.8)
-        x = np.stack([cv2.GaussianBlur(f, (0, 0), s) for f in x])
-    if rng.random() < 0.5:  # glows and other things the renderer does not draw
-        yy, xx = np.mgrid[:H, :W]
-        for _ in range(rng.integers(1, 4)):
-            cy, cx, s, a = rng.uniform(0, H), rng.uniform(0, W), rng.uniform(2, 6), rng.uniform(0.05, 0.35)
-            x = x + a * np.exp(-((yy - cy) ** 2 + (xx - cx) ** 2) / (2 * s * s))[None]
-    x = x + rng.normal(0, rng.uniform(0.0, 0.03), x.shape)
-    return np.clip(x, 0, 1).astype(np.float32)
+    """Brightness, blur, glows and noise the renderer does not have, per sample."""
+    b, dev = x.shape[0], x.device
+    x = x * torch.from_numpy(rng.uniform(0.75, 1.25, b).astype(np.float32)).to(dev).view(b, 1, 1, 1)
+    blur = np.nonzero(rng.random(b) < 0.3)[0]
+    if len(blur):
+        sig = torch.from_numpy(rng.uniform(0.3, 0.8, len(blur)).astype(np.float32)).to(dev)
+        taps = torch.arange(-2, 3, device=dev, dtype=torch.float32)
+        k = torch.exp(-taps ** 2 / (2 * sig.view(-1, 1) ** 2))
+        k = (k / k.sum(1, keepdim=True)).repeat_interleave(N_FRAMES, 0)  # (n * frames, 5)
+        y = x[blur].reshape(1, -1, H, W)
+        y = F.conv2d(F.pad(y, (2, 2, 0, 0), mode="replicate"), k.view(-1, 1, 1, 5), groups=y.shape[1])
+        y = F.conv2d(F.pad(y, (0, 0, 2, 2), mode="replicate"), k.view(-1, 1, 5, 1), groups=y.shape[1])
+        x[blur] = y.view(-1, N_FRAMES, H, W)
+    glow = rng.uniform(size=(b, 3, 4)) * [H, W, 4, 0.30] + [0, 0, 2, 0.05]  # centre y, x, size, strength
+    glow[:, :, 3] *= (np.arange(3) < rng.integers(1, 4, (b, 1))) & (rng.random((b, 1)) < 0.5)
+    g = torch.from_numpy(glow.astype(np.float32)).to(dev)
+    yy = torch.arange(H, device=dev, dtype=torch.float32).view(1, 1, H, 1)
+    xx = torch.arange(W, device=dev, dtype=torch.float32).view(1, 1, 1, W)
+    field = (g[..., 3, None, None] * torch.exp(-((yy - g[..., 0, None, None]) ** 2 + (xx - g[..., 1, None, None]) ** 2)
+                                               / (2 * g[..., 2, None, None] ** 2))).sum(1)
+    x = x + field.unsqueeze(1)
+    noise = torch.from_numpy(rng.uniform(0, 0.03, b).astype(np.float32)).to(dev).view(b, 1, 1, 1)
+    return (x + noise * torch.randn_like(x)).clamp(0, 1)
 
 
 class Student(nn.Module):
@@ -77,111 +116,163 @@ class Student(nn.Module):
         self.head = nn.Sequential(nn.Linear(128 * 8 * 10 + 3, 256), nn.ReLU(), nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, 4))
 
     def forward(self, frames, aux):
-        z = self.conv(frames).flatten(1)
+        z = self.conv(frames.to(memory_format=torch.channels_last)).flatten(1)
         out = self.head(torch.cat([z, aux], 1))
         return torch.tanh(out[:, :2]), out[:, 2:]  # move in [-1, 1], key logits
 
 
-def to_action(move, keys):
-    return np.concatenate([move, np.where(keys > 0, 1.0, -1.0)]).astype(np.float32)
+def autocast(device):
+    return torch.autocast(device, dtype=torch.bfloat16, enabled=device == "cuda")  # 2x faster on the 4060
 
 
-# ---------------------------------------------------------------- rollouts (worker processes, CPU)
+# ---------------------------------------------------------------- rollouts: workers step envs, the GPU decides
+
+def env_worker(conn, jobs, k):
+    """Steps up to SLOTS environments, one job (id, map, seed) at a time each. Every tick it sends their states and
+    the jobs that just finished, and gets an action per slot back."""
+    torch.set_num_threads(1)
+    pending, slots, finished = list(jobs), {}, []
+
+    def start(slot):
+        if pending:
+            jid, path, seed = pending.pop(0)
+            env = OsuEnv(parse_osu(path), hz=HZ, k=k, classic=False)
+            obs, _ = env.reset(seed=seed)
+            slots[slot] = (jid, env, obs)
+
+    for s in range(SLOTS):
+        start(s)
+    while True:
+        conn.send(([(s, jid, obs, env.t, env.cursor.copy()) for s, (jid, env, obs) in slots.items()], finished))
+        if not slots:
+            return
+        finished = []
+        for s, a in conn.recv().items():
+            jid, env, _ = slots.pop(s)
+            obs, _, done, _, _ = env.step(a)
+            if done:
+                finished.append((jid, env.lazer_accuracy()))
+                start(s)
+            else:
+                slots[s] = (jid, env, obs)
+
 
 _teacher = None
 
 
-def teacher():
+def teacher(device):
     global _teacher
     if _teacher is None:
         from stable_baselines3 import PPO
-        torch.set_num_threads(1)
-        _teacher = PPO.load(TEACHER, device="cpu")
+        _teacher = PPO.load(TEACHER, device=device)
     return _teacher
 
 
-def rollout(job):
-    """job = (map path, student state_dict or None, share of steps the student drives, latency ms, seed).
-    -> per step: time, cursor, the teacher's action; and the lazer accuracy of the play."""
-    path, state, drive, lat, seed = job
-    rng = np.random.default_rng(seed)
-    t_model = teacher()
-    bm = parse_osu(path)
-    env = OsuEnv(bm, hz=HZ, k=k_from_obs(t_model.observation_space.shape[0]), classic=False)
-    obs, _ = env.reset(seed=seed)
-    student = None
-    if state is not None and drive > 0:
-        student = Student()
-        student.load_state_dict(state)
-        student.eval()
-        renderer = Renderer(bm)
-    n_max = int((bm.ends.max() + 5000) / DT) + 10
-    ts, cursors, actions = np.zeros(n_max), np.zeros((n_max, 2), np.float32), np.zeros((n_max, 4), np.float32)
-    n, done = 0, False
-    while not done:
+def rollouts(jobs, student, drive, procs, device):
+    """jobs: [(map, latency ms, seed)]. The student drives each step with probability `drive`; every step is labelled
+    with the teacher's action. -> [dict(map, t, cursor, action, lazer_acc)]"""
+    t_model = teacher(device)
+    k = k_from_obs(t_model.observation_space.shape[0])
+    n_max = [int((scene(m).end.max() + 5000) / DT) + 10 for m, _, _ in jobs]
+    ts = [np.zeros(n) for n in n_max]
+    cur = [np.zeros((n, 2), np.float32) for n in n_max]
+    act = [np.zeros((n, 4), np.float32) for n in n_max]
+    steps, accs = [0] * len(jobs), {}
+    rngs = [np.random.default_rng(seed) for _, _, seed in jobs]
+    ctx = get_context("fork" if hasattr(os, "fork") else "spawn")
+    conns, workers = [], []
+    for w in range(procs):
+        mine = [(j, m, seed) for j, (m, _, seed) in enumerate(jobs) if j % procs == w]
+        if not mine:
+            continue
+        a, b = Pipe()
+        workers.append(ctx.Process(target=env_worker, args=(b, mine, k), daemon=True))
+        workers[-1].start()
+        conns.append(a)
+    active = set(range(len(conns)))
+    while active:
+        batch = []
+        for w in sorted(active):
+            states, finished = conns[w].recv()
+            accs.update(finished)
+            if not states:
+                active.discard(w)
+            batch += [(w, *s) for s in states]
+        if not batch:
+            continue
+        obs = np.stack([x[3] for x in batch])
         a_t = t_model.predict(obs, deterministic=True)[0]
-        ts[n], cursors[n], actions[n] = env.t, env.cursor, a_t
-        a = a_t
-        if student is not None and rng.random() < drive:
-            f, aux = observe(renderer, ts[:n + 1], cursors[:n + 1], n, lat)
-            with torch.no_grad():
-                m, k = student(torch.from_numpy(f)[None], torch.from_numpy(aux)[None])
-            a = to_action(m[0].numpy(), k[0].numpy())
-        n += 1
-        obs, _, done, _, _ = env.step(a)
-    return dict(map=path, t=ts[:n], cursor=cursors[:n], action=actions[:n], lazer_acc=env.lazer_accuracy())
+        actions = a_t.copy()
+        drv = []
+        for n, (w, s, jid, _, t, c) in enumerate(batch):
+            i = steps[jid]
+            ts[jid][i], cur[jid][i], act[jid][i] = t, c, a_t[n]
+            steps[jid] += 1
+            if student is not None and rngs[jid].random() < drive:
+                drv.append(n)
+        if drv:
+            items = [(jobs[batch[n][2]][0], ts[batch[n][2]], cur[batch[n][2]], steps[batch[n][2]] - 1,
+                      jobs[batch[n][2]][1], 0, 2.2) for n in drv]
+            with torch.no_grad(), autocast(device):
+                m, kl = student(*build(prepare(items), device))
+            actions[drv, :2] = m.float().cpu().numpy()
+            actions[drv, 2:] = np.where(kl.float().cpu().numpy() > 0, 1.0, -1.0)
+        for w in active:
+            conns[w].send({s: actions[n] for n, (ww, s, *_) in enumerate(batch) if ww == w})
+    for p in workers:
+        p.join()
+    return [dict(map=m, t=ts[j][:steps[j]], cursor=cur[j][:steps[j]], action=act[j][:steps[j]], lazer_acc=accs[j])
+            for j, (m, _, _) in enumerate(jobs)]
 
 
-def run_jobs(jobs, procs):
-    with get_context("fork").Pool(procs, initializer=torch.set_num_threads, initargs=(1,)) as pool:
-        return pool.map(rollout, jobs, chunksize=1)
+# ---------------------------------------------------------------- training
+
+def batches(plays, size, seed, out, stop):
+    """Background thread: random (play, step) samples, prepared on the CPU, into the queue `out` until `stop`."""
+    rng = np.random.default_rng(seed)
+    lens = np.array([len(p["t"]) for p in plays], float)
+    prob = lens / lens.sum()
+    while not stop.is_set():
+        items, labels = [], []
+        for j in rng.choice(len(plays), size, p=prob):
+            p = plays[j]
+            i = int(rng.integers(N_FRAMES, len(p["t"])))
+            items.append((p["map"], p["t"], p["cursor"], i, rng.uniform(0, MAX_LAT), int(rng.integers(0, 3)), rng.uniform(1.5, 3.0)))
+            labels.append(p["action"][i])
+        batch = (prepare(items), np.array(labels, np.float32), int(rng.integers(1 << 30)))
+        while not stop.is_set():
+            try:
+                out.put(batch, timeout=0.5)
+                break
+            except queue.Full:
+                pass
 
 
-# ---------------------------------------------------------------- training (main process, GPU)
-
-class Samples(torch.utils.data.IterableDataset):
-    def __init__(self, plays, seed):
-        self.plays, self.seed = plays, seed
-
-    def __iter__(self):
-        info = torch.utils.data.get_worker_info()
-        rng = np.random.default_rng([self.seed, info.id if info else 0])
-        renderers = {}
-        while True:
-            p = self.plays[rng.integers(len(self.plays))]
-            if p["map"] not in renderers:
-                if len(renderers) > 64:
-                    renderers.clear()
-                renderers[p["map"]] = Renderer(parse_osu(p["map"]))
-            for _ in range(32):  # several samples per map: parsing is the slow part
-                i = int(rng.integers(N_FRAMES, len(p["t"])))
-                f, aux = observe(renderers[p["map"]], p["t"], p["cursor"], i, lat=rng.uniform(0, MAX_LAT),
-                                 lag=int(rng.integers(0, 3)), radius=rng.uniform(1.5, 3.0), rng=rng)
-                a = p["action"][i]
-                yield f, aux, np.clip(a[:2], -1, 1), (a[2:] > 0).astype(np.float32)
-
-
-def train(model, plays, updates, device, seed, workers):
-    loader = torch.utils.data.DataLoader(Samples(plays, seed), batch_size=256, num_workers=workers, persistent_workers=False)
+def train(model, plays, updates, device, seed):
+    q, stop = queue.Queue(maxsize=4), threading.Event()
+    for n in range(2):  # two preparers keep the GPU busy
+        threading.Thread(target=batches, args=(plays, 256, seed * 10 + n, q, stop), daemon=True).start()
     opt = torch.optim.AdamW(model.parameters(), lr=3e-4)
     model.train()
-    t0, it = time.time(), iter(loader)
+    t0 = time.time()
     for step in range(updates):
-        f, aux, move, keys = (x.to(device) for x in next(it))
-        with torch.autocast(device, dtype=torch.bfloat16, enabled=device == "cuda"):  # 2x faster on the 4060
-            m, k = model(f.to(memory_format=torch.channels_last), aux)
-        loss = F.mse_loss(m.float(), move) + F.binary_cross_entropy_with_logits(k.float(), keys)
+        prepared, labels, aug_seed = q.get()
+        f, aux = build(prepared, device, np.random.default_rng(aug_seed))
+        a = torch.from_numpy(labels).to(device)
+        with autocast(device):
+            m, k = model(f, aux)
+        loss = F.mse_loss(m.float(), a[:, :2].clamp(-1, 1)) + F.binary_cross_entropy_with_logits(k.float(), (a[:, 2:] > 0).float())
         opt.zero_grad()
         loss.backward()
         opt.step()
         if step % 500 == 0:
-            print(f"  update {step}/{updates} loss {loss.item():.4f} ({(time.time() - t0) / max(step, 1):.3f} s/update)", flush=True)
+            print(f"  update {step}/{updates} loss {loss.item():.4f} ({(time.time() - t0) / max(step, 1) * 1000:.0f} ms/update)", flush=True)
+    stop.set()
     model.eval()
 
 
-def evaluate(model, maps, lat, procs, seed=0):
-    state = {k: v.cpu() for k, v in model.state_dict().items()}
-    plays = run_jobs([(m, state, 1.0, lat, seed + n) for n, m in enumerate(maps)], procs)
+def evaluate(model, maps, lat, procs, device, seed=0):
+    plays = rollouts([(m, lat, seed + n) for n, m in enumerate(maps)], model, 1.0, procs, device)
     return float(np.mean([p["lazer_acc"] for p in plays])), plays
 
 
@@ -190,8 +281,7 @@ def main():
     p.add_argument("--rounds", type=int, default=4)
     p.add_argument("--maps", type=int, default=300, help="training maps rolled out per round")
     p.add_argument("--updates", type=int, default=20000, help="gradient updates per round")
-    p.add_argument("--procs", type=int, default=12)
-    p.add_argument("--workers", type=int, default=8)
+    p.add_argument("--procs", type=int, default=12, help="simulator worker processes")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--out", default="results/experiments/019-student")
     p.add_argument("--smoke", action="store_true")
@@ -204,19 +294,20 @@ def main():
     val = sorted(glob.glob("maps/hf/val/*.osu"))
     val = [str(f) for f in np.random.default_rng(1).choice(val, 3 if args.smoke else 20, replace=False)]
     drive = [0.0, 0.5, 0.75, 1.0]
-    model, plays, best = Student().to(device).to(memory_format=torch.channels_last), [], (-1.0, None)
+    model, plays, best, log = Student().to(device).to(memory_format=torch.channels_last), [], (-1.0, None), []
     os.makedirs(args.out, exist_ok=True)
-    log = []
     for r in range(args.rounds):
         maps = [str(f) for f in rng.choice(pool, args.maps, replace=False)]
-        state = None if r == 0 else {k: v.cpu() for k, v in model.state_dict().items()}
         t0 = time.time()
-        new = run_jobs([(m, state, drive[min(r, 3)], float(rng.uniform(0, MAX_LAT)), int(rng.integers(1 << 30))) for m in maps], args.procs)
+        d = drive[min(r, 3)]
+        model.eval()
+        new = rollouts([(m, float(rng.uniform(0, MAX_LAT)), int(rng.integers(1 << 30))) for m in maps],
+                       model if r else None, d, args.procs, device)
         plays += new
-        print(f"round {r}: {len(new)} rollouts ({drive[min(r, 3)]:.0%} student) in {time.time() - t0:.0f} s, "
+        print(f"round {r}: {len(new)} rollouts ({d:.0%} student) in {time.time() - t0:.0f} s, "
               f"{sum(len(x['t']) for x in plays)} labelled steps", flush=True)
-        train(model, plays, args.updates, device, args.seed * 100 + r, args.workers)
-        acc, _ = evaluate(model, val, 0.0, args.procs)
+        train(model, plays, args.updates, device, args.seed * 100 + r)
+        acc, _ = evaluate(model, val, 0.0, args.procs, device)
         print(f"round {r}: validation lazer acc {acc:.2%}", flush=True)
         log.append(dict(round=r, val_lazer_acc=acc, steps=sum(len(x["t"]) for x in plays)))
         torch.save(model.state_dict(), os.path.join(args.out, f"round{r}.pt"))
@@ -230,7 +321,7 @@ def main():
         real, hf = real[:2], hf[:2]
     summary = dict(best_round=best[1], rounds=log)
     for name, maps, lat in [("real", real, 0.0), ("hf", hf, 0.0), ("real_lat20", real, 20.0)]:
-        acc, ps = evaluate(model, maps, lat, args.procs)
+        acc, ps = evaluate(model, maps, lat, args.procs, device)
         summary[name] = dict(lazer_acc=acc, per_map={os.path.basename(x["map"]): x["lazer_acc"] for x in ps})
         print(f"{name}: lazer acc {acc:.2%}", flush=True)
     with open(os.path.join(args.out, "summary.json"), "w") as f:
