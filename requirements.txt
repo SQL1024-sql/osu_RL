@@ -4,3 +4,4 @@ stable-baselines3
 matplotlib
 pandas
 aiohttp
+opencv-python-headless
