@@ -62,6 +62,39 @@ def pack(frames, device):
     return dict(valid=to(valid), kind=to(kind), start=to(start), end=to(end), spans=to(spans), path=to(path), per=to(per))
 
 
+MAP_STRIDE = 1e8  # ms; makes (map, time) one sorted key
+
+
+class SceneTable:
+    """Many maps' objects as GPU tensors, so whole batches of (map, time) find what is on screen without the CPU."""
+
+    def __init__(self, scenes, device):
+        cat = lambda name: torch.from_numpy(np.concatenate([getattr(s, name) for s in scenes])).to(device)
+        self.start, self.end, self.kind, self.spans, self.path = (cat(n) for n in ("start", "end", "kind", "spans", "path"))
+        counts = np.array([len(s.start) for s in scenes])
+        self.first = torch.from_numpy(np.concatenate([[0], np.cumsum(counts)[:-1]])).to(device)
+        ids = np.repeat(np.arange(len(scenes)), counts)
+        self.keys = torch.from_numpy(ids * MAP_STRIDE + np.concatenate([s.appear for s in scenes]).astype(np.float64)).to(device)
+        self.per_map = torch.tensor([[s.r, s.preempt, s.fade] for s in scenes], dtype=torch.float32, device=device)
+
+    def pack(self, map_ids, t):
+        """map_ids (B,) long, t (B,) ms -> the same dict as pack(), on the GPU."""
+        b = len(t)
+        hi = torch.searchsorted(self.keys, map_ids.double() * MAP_STRIDE + t.double(), right=True)
+        cand = hi[:, None] - 4 * V + torch.arange(4 * V, device=t.device)
+        c = cand.clamp(min=0)
+        ok = (cand >= self.first[map_ids][:, None]) & (self.end[c] + FADE_OUT >= t[:, None])
+        rank = ok.cumsum(1) - 1
+        keep = ok & (rank < V)  # the earliest V on screen, like Scene.window
+        idx = torch.full((b, V + 1), -1, dtype=torch.long, device=t.device)
+        idx.scatter_(1, torch.where(keep, rank, V), torch.where(keep, c, -1))
+        idx = idx[:, :V]
+        g = idx.clamp(min=0)
+        valid = idx >= 0
+        return dict(valid=valid, kind=torch.where(valid, self.kind[g], 0), start=self.start[g], end=self.end[g],
+                    spans=self.spans[g], path=self.path[g], per=torch.cat([t[:, None].float(), self.per_map[map_ids]], 1))
+
+
 def _grid(device):
     gx = X0 + (torch.arange(W, device=device) + 0.5) / PX
     gy = Y0 + (torch.arange(H, device=device) + 0.5) / PX
@@ -148,7 +181,7 @@ except ImportError:  # no triton (CPU-only torch): render() above still works
 
 if triton is not None:
     @triton.jit
-    def _render_kernel(out, per, valid, kind, start, end, spans, path,
+    def _render_kernel(out, per, valid, kind, start, end, spans, path, dots, HAS_DOTS: tl.constexpr,
                        X0_: tl.constexpr, Y0_: tl.constexpr, PX_: tl.constexpr, W_: tl.constexpr, H_: tl.constexpr,
                        V_: tl.constexpr, K_: tl.constexpr, FADE_OUT_: tl.constexpr,
                        FILL_: tl.constexpr, NUMBER_: tl.constexpr, RIM_: tl.constexpr, APPROACH_: tl.constexpr,
@@ -174,78 +207,97 @@ if triton is not None:
             v = V_ - 1 - vi  # earlier objects end up on top
             s = b * V_ + v
             ok = tl.load(valid + s)
-            kd = tl.load(kind + s)
-            st = tl.load(start + s)
-            en = tl.load(end + s)
-            sp = tl.load(spans + s)
-            pb = path + s * K_ * 2
-            appear = st - pre
-            out_fade = tl.where(t > en, tl.maximum(1.0 - (t - en) / FADE_OUT_, 0.0), 1.0)
-            alpha = tl.maximum(tl.minimum((t - appear) / fade, 1.0) * out_fade, 0.0) * ok
-            is_slider = kd == 1
-            # slider body
-            shown = tl.maximum(tl.clamp((t - appear) / (pre / 3.0), 0.0, 1.0) * (K_ - 1), 1.0)
-            d2 = tl.full([BLOCK], 1e8, tl.float32)
-            for k in tl.static_range(K_):
-                qx = tl.load(pb + 2 * k)
-                qy = tl.load(pb + 2 * k + 1)
-                dk = (gx - qx) * (gx - qx) + (gy - qy) * (gy - qy)
-                d2 = tl.where(shown >= k, tl.minimum(d2, dk), d2)
-            db = tl.sqrt(d2)
-            body = tl.clamp((r - db) * PX_ + 0.5, 0.0, 1.0) * is_slider
-            inner = tl.clamp((0.85 * r - db) * PX_ + 0.5, 0.0, 1.0) * is_slider
-            layer = BORDER_ * (body - inner) + BODY_ * inner
-            mask = body
-            # head, or the ball while sliding
-            prog = tl.clamp((t - st) / tl.maximum(en - st, 1e-3), 0.0, 1.0) * sp
-            span = tl.minimum(tl.floor(prog), sp - 1.0)
-            f = prog - span
-            odd = (span - 2.0 * tl.floor(span / 2.0)) > 0.5
-            along = tl.where(odd, 1.0 - f, f) * (K_ - 1)
-            lo = tl.minimum(tl.maximum(tl.floor(along), 0.0), K_ - 2.0)
-            w = along - lo
-            li = lo.to(tl.int32)
-            bx = tl.load(pb + 2 * li) * (1.0 - w) + tl.load(pb + 2 * li + 2) * w
-            by = tl.load(pb + 2 * li + 1) * (1.0 - w) + tl.load(pb + 2 * li + 3) * w
-            hx = tl.load(pb)
-            hy = tl.load(pb + 1)
-            sliding = is_slider & (t > st)
-            cx = tl.where(sliding, bx, hx)
-            cy = tl.where(sliding, by, hy)
-            dc = tl.sqrt((gx - cx) * (gx - cx) + (gy - cy) * (gy - cy))
-            disk = tl.clamp((r - dc) * PX_ + 0.5, 0.0, 1.0)
-            num = tl.clamp((r / 4.0 - dc) * PX_ + 0.5, 0.0, 1.0)
-            rim = tl.clamp((rim_w / 2.0 - tl.abs(dc - r)) * PX_ + 0.5, 0.0, 1.0)
-            layer = layer + (FILL_ - layer) * disk
-            layer = layer + (NUMBER_ - layer) * num
-            layer = layer + (RIM_ - layer) * rim
-            mask = tl.maximum(mask, disk)
-            # approach circle
-            dh = tl.sqrt((gx - hx) * (gx - hx) + (gy - hy) * (gy - hy))
-            a = tl.clamp((t - appear) / tl.minimum(2.0 * fade, pre), 0.0, 1.0) * (t < st)
-            cov = tl.clamp((app_w / 2.0 - tl.abs(dh - r * (1.0 + 3.0 * (st - t) / pre))) * PX_ + 0.5, 0.0, 1.0) * (a > 0)
-            layer = layer + (APPROACH_ * a - layer) * cov
-            mask = tl.maximum(mask, cov * a)
-            # spinner
-            is_spin = kd == 2
-            sp_alpha = tl.clamp((t - (st - 500.0)) / 500.0, 0.0, 1.0) * out_fade * ok
-            layer = tl.where(is_spin, SPIN_ * srings, layer)
-            mask = tl.where(is_spin, srings, mask)
-            alpha = tl.where(is_spin, sp_alpha, alpha)
-            acc = acc * (1.0 - alpha * mask) + alpha * layer
+            if ok > 0.5:  # empty slots cost nothing: most frames show 2-3 objects
+                kd = tl.load(kind + s)
+                st = tl.load(start + s)
+                en = tl.load(end + s)
+                sp = tl.load(spans + s)
+                pb = path + s * K_ * 2
+                appear = st - pre
+                out_fade = tl.where(t > en, tl.maximum(1.0 - (t - en) / FADE_OUT_, 0.0), 1.0)
+                alpha = tl.maximum(tl.minimum((t - appear) / fade, 1.0) * out_fade, 0.0) * ok
+                is_slider = kd == 1
+                # slider body
+                shown = tl.maximum(tl.clamp((t - appear) / (pre / 3.0), 0.0, 1.0) * (K_ - 1), 1.0)
+                d2 = tl.full([BLOCK], 1e8, tl.float32)
+                if kd == 1:  # only sliders have a body
+                    for k in tl.static_range(K_):
+                        qx = tl.load(pb + 2 * k)
+                        qy = tl.load(pb + 2 * k + 1)
+                        dk = (gx - qx) * (gx - qx) + (gy - qy) * (gy - qy)
+                        d2 = tl.where(shown >= k, tl.minimum(d2, dk), d2)
+                db = tl.sqrt(d2)
+                body = tl.clamp((r - db) * PX_ + 0.5, 0.0, 1.0) * is_slider
+                inner = tl.clamp((0.85 * r - db) * PX_ + 0.5, 0.0, 1.0) * is_slider
+                layer = BORDER_ * (body - inner) + BODY_ * inner
+                mask = body
+                # head, or the ball while sliding
+                prog = tl.clamp((t - st) / tl.maximum(en - st, 1e-3), 0.0, 1.0) * sp
+                span = tl.minimum(tl.floor(prog), sp - 1.0)
+                f = prog - span
+                odd = (span - 2.0 * tl.floor(span / 2.0)) > 0.5
+                along = tl.where(odd, 1.0 - f, f) * (K_ - 1)
+                lo = tl.minimum(tl.maximum(tl.floor(along), 0.0), K_ - 2.0)
+                w = along - lo
+                li = lo.to(tl.int32)
+                bx = tl.load(pb + 2 * li) * (1.0 - w) + tl.load(pb + 2 * li + 2) * w
+                by = tl.load(pb + 2 * li + 1) * (1.0 - w) + tl.load(pb + 2 * li + 3) * w
+                hx = tl.load(pb)
+                hy = tl.load(pb + 1)
+                sliding = is_slider & (t > st)
+                cx = tl.where(sliding, bx, hx)
+                cy = tl.where(sliding, by, hy)
+                dc = tl.sqrt((gx - cx) * (gx - cx) + (gy - cy) * (gy - cy))
+                disk = tl.clamp((r - dc) * PX_ + 0.5, 0.0, 1.0)
+                num = tl.clamp((r / 4.0 - dc) * PX_ + 0.5, 0.0, 1.0)
+                rim = tl.clamp((rim_w / 2.0 - tl.abs(dc - r)) * PX_ + 0.5, 0.0, 1.0)
+                layer = layer + (FILL_ - layer) * disk
+                layer = layer + (NUMBER_ - layer) * num
+                layer = layer + (RIM_ - layer) * rim
+                mask = tl.maximum(mask, disk)
+                # approach circle
+                dh = tl.sqrt((gx - hx) * (gx - hx) + (gy - hy) * (gy - hy))
+                a = tl.clamp((t - appear) / tl.minimum(2.0 * fade, pre), 0.0, 1.0) * (t < st)
+                cov = tl.clamp((app_w / 2.0 - tl.abs(dh - r * (1.0 + 3.0 * (st - t) / pre))) * PX_ + 0.5, 0.0, 1.0) * (a > 0)
+                layer = layer + (APPROACH_ * a - layer) * cov
+                mask = tl.maximum(mask, cov * a)
+                # spinner
+                is_spin = kd == 2
+                sp_alpha = tl.clamp((t - (st - 500.0)) / 500.0, 0.0, 1.0) * out_fade * ok
+                layer = tl.where(is_spin, SPIN_ * srings, layer)
+                mask = tl.where(is_spin, srings, mask)
+                alpha = tl.where(is_spin, sp_alpha, alpha)
+                acc = acc * (1.0 - alpha * mask) + alpha * layer
+        if HAS_DOTS:  # the cursor: a white dot (x, y in osu! pixels, radius in frame pixels) over everything
+            qx = tl.load(dots + b * 3)
+            qy = tl.load(dots + b * 3 + 1)
+            rad = tl.load(dots + b * 3 + 2)
+            dd = tl.sqrt((gx - qx) * (gx - qx) + (gy - qy) * (gy - qy)) * PX_
+            acc = tl.maximum(acc, tl.clamp(rad - dd + 0.5, 0.0, 1.0))
         tl.store(out + b * W_ * H_ + pix, tl.clamp(acc, 0.0, 1.0), mask=inside)
 
 
-def render_fast(p):
-    """render() as one fused kernel on CUDA (falls back to render() elsewhere)."""
+def draw_dots(img, dots):
+    """img (B, H, W), dots (B, 3): x, y in osu! pixels, radius in frame pixels -> img with a white dot at each."""
+    d = dots.view(-1, 3, 1, 1)
+    gx = X0 + (torch.arange(W, device=img.device) + 0.5) / PX
+    gy = (Y0 + (torch.arange(H, device=img.device) + 0.5) / PX).view(H, 1)
+    dist = torch.sqrt((gx - d[:, 0]) ** 2 + (gy - d[:, 1]) ** 2) * PX
+    return torch.maximum(img, (d[:, 2] - dist + 0.5).clamp(0, 1))
+
+
+def render_fast(p, dots=None):
+    """render() as one fused kernel on CUDA, with draw_dots() folded in (falls back to the torch code elsewhere)."""
     dev = p["per"].device
     if triton is None or dev.type != "cuda":
-        return render(p)
+        img = render(p)
+        return img if dots is None else draw_dots(img, dots)
     b = p["per"].shape[0]
     out = torch.empty(b, H, W, device=dev)
     block = 256
     _render_kernel[(b, triton.cdiv(H * W, block))](
         out, p["per"], p["valid"].float(), p["kind"].int(), p["start"], p["end"], p["spans"], p["path"].contiguous(),
+        out if dots is None else dots.contiguous(), dots is not None,
         X0, Y0, PX, W, H, V, K, float(FADE_OUT), FILL, NUMBER, RIM, APPROACH, BODY, BORDER, SPIN, RIM_W, APPROACH_W, block)
     return out
 
