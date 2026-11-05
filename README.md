@@ -177,22 +177,32 @@ python eval_hf.py results/<run> --hz 120
 4. 冒煙測試（幾分鐘，只確認流程跑得通，成績接近 0 是正常的）：
 
    ```bash
-   python student.py --smoke --procs 4
+   python student.py --smoke
    ```
 
-5. 正式訓練。`--procs` 是同時跑模擬器的程序數，設成 CPU 核心數減 4 左右。訓練要跑幾個小時，用 `nohup` 讓它在斷線後繼續跑：
+5. 正式訓練。同時跑模擬器的程序數會自動設成「這台能用的 CPU 核心數減 2」（會看 CPU 親和性和容器的 CPU 配額），開頭會印出來。一台同時跑幾個 seed，就加 `--share` 平分核心。訓練要跑一段時間，用 `nohup` 讓它在斷線後繼續跑。只跑一個 seed：
 
    ```bash
-   mkdir -p runs && nohup python student.py --rounds 4 --maps 300 --updates 20000 --procs 12 > runs/019-student.log 2>&1 &
+   mkdir -p runs && nohup python student.py --seed 0 > runs/019-s0.log 2>&1 &
+   ```
+
+   同一台同時跑兩個 seed（例如閒置的 H100，顯存很夠，CPU 核心兩邊平分）：
+
+   ```bash
+   mkdir -p runs && nohup python student.py --seed 0 --share 2 > runs/019-s0.log 2>&1 &
    ```
 
    ```bash
-   tail -f runs/019-student.log
+   nohup python student.py --seed 1 --share 2 > runs/019-s1.log 2>&1 &
    ```
 
-   RTX 4060 筆電（16 執行緒）約 2 小時。每輪會印出收集了多少步、訓練速度和驗證準度。
+   ```bash
+   tail -f runs/019-s0.log
+   ```
 
-6. 結果在 `results/experiments/019-student/`：每輪的模型 `round0.pt`–`round3.pt`，以及 `summary.json`（挑到哪一輪、每輪的驗證準度、真實譜 / HF 測試譜 / 加 20 ms 延遲的 lazer 準度）。把 `summary.json` 和挑到的那一輪模型 commit 回來，再對照 RESEARCH.md 裡預先登記的三個標準記錄結果。
+   RTX 4060 筆電（16 執行緒）跑一個 seed 約 2 小時。每輪會印出收集了多少步、訓練速度和驗證準度。
+
+6. 結果在 `results/experiments/019-student/seed<N>/`：每輪的模型 `round0.pt`–`round3.pt`，以及 `summary.json`（挑到哪一輪、每輪的驗證準度、真實譜 / HF 測試譜 / 加 20 ms 延遲的 lazer 準度）。把 `summary.json` 和挑到的那一輪模型 commit 回來，再對照 RESEARCH.md 裡預先登記的三個標準記錄結果。
 
 評估與 lazer 驗證都需要 ppy/osu 的 clone 和 .NET 10 SDK：
 

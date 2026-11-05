@@ -1019,4 +1019,4 @@
   3. 加 20 ms 延遲（畫面舊 20 ms、延遲值照實給）時，真實譜準度比 0 ms 掉不超過 1 個百分點
   - 1、2、3 都過才算 H10 成立。只過 1、2 代表模仿學得起來，但延遲還要再處理
 - **不在這次範圍**：在真的 lazer 上打（要直播機），學生用 RL 再進步
-- 紀錄：`runs/*-019-student/`，結果在 `results/experiments/019-student/summary.json`
+- 紀錄：`runs/019-s{0,1}.log`，結果在 `results/experiments/019-student/seed{0,1}/summary.json`

@@ -312,18 +312,34 @@ def evaluate(model, paths, lat, procs, maps, seed=0):
     return float(np.mean([p["lazer_acc"] for p in plays])), plays
 
 
+def usable_cpus():
+    """CPU cores this process may use: its affinity mask, capped by a container's CPU quota (cgroup v2)."""
+    n = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+    try:
+        quota, period = open("/sys/fs/cgroup/cpu.max").read().split()
+        if quota != "max":
+            n = min(n, int(quota) // int(period))
+    except (OSError, ValueError):
+        pass
+    return max(1, n)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--rounds", type=int, default=4)
     p.add_argument("--maps", type=int, default=300, help="training maps rolled out per round")
     p.add_argument("--updates", type=int, default=20000, help="gradient updates per round")
-    p.add_argument("--procs", type=int, default=12, help="simulator worker processes")
+    p.add_argument("--procs", type=int, help="simulator worker processes (default: the usable cores minus 2, split by --share)")
+    p.add_argument("--share", type=int, default=1, help="how many runs share this machine")
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--out", default="results/experiments/019-student")
+    p.add_argument("--out", help="default: results/experiments/019-student/seed<seed>")
     p.add_argument("--smoke", action="store_true")
     args = p.parse_args()
     if args.smoke:
         args.rounds, args.maps, args.updates = 2, 4, 200
+    args.procs = args.procs or max(1, (usable_cpus() - 2) // args.share)  # main process + GPU driver keep the rest
+    args.out = args.out or f"results/experiments/019-student/seed{args.seed}"
+    print(f"{args.procs} simulator processes, results in {args.out}", flush=True)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     rng = np.random.default_rng(args.seed)
     pool = sorted(glob.glob("maps/hf/train/*.osu"))
@@ -334,11 +350,11 @@ def main():
     maps = Maps(device)
     os.makedirs(args.out, exist_ok=True)
     for r in range(args.rounds):
-        maps = [str(f) for f in rng.choice(pool, args.maps, replace=False)]
+        picked = [str(f) for f in rng.choice(pool, args.maps, replace=False)]
         t0 = time.time()
         d = drive[min(r, 3)]
         model.eval()
-        new = rollouts([(m, float(rng.uniform(0, MAX_LAT)), int(rng.integers(1 << 30))) for m in maps],
+        new = rollouts([(m, float(rng.uniform(0, MAX_LAT)), int(rng.integers(1 << 30))) for m in picked],
                        model if r else None, d, args.procs, maps)
         plays += new
         print(f"round {r}: {len(new)} rollouts ({d:.0%} student) in {time.time() - t0:.0f} s, "
