@@ -5,6 +5,7 @@ from the moment each hit circle starts fading in (its start time minus the preem
     python -m live.screen_play maps/test/renatus_hard.osu --level expert
 
 Start it, then start the same map in lazer (background dim 100%, no mods). It waits for the dark playfield.
+--watch sends no input: it only times the game (start the map with Autoplay) and reports how steady the clock is.
 """
 import argparse
 import ctypes
@@ -16,7 +17,6 @@ import mss
 import numpy as np
 
 from beatmap import SPINNER, parse_osu
-from live.prepare import LEVELS, prepare
 from live.tablet import M1, M2, LostFocus, Tablet, lazer_window
 
 user32 = ctypes.WinDLL("user32")
@@ -187,13 +187,30 @@ def fit(samples, fade):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("map")
-    p.add_argument("--level", default="expert", choices=LEVELS)
+    p.add_argument("--level", default="expert", help="a level of live.prepare.LEVELS")
     p.add_argument("--lag-ms", type=float, default=None,
                    help="send every move this much later (negative: earlier); default: minus the measured loop latency")
     p.add_argument("--seconds", type=float, default=1e9, help="stop after this much of the map")
     p.add_argument("--log", help="write every fade-in fit here (json)")
+    p.add_argument("--watch", action="store_true", help="no input, only time the game (play the map with Autoplay)")
     args = p.parse_args()
+    if args.watch:
+        args.lag_ms = 0.0
+        bm = parse_osu(args.map)
+        events = fade_ins(bm)
+        clock = Clock(events, Playfield(), bm.radius, lambda: (-1e4, -1e4))
+        clock.start()
+        print(f"{len(events)} clean fade-ins to time the game by; start the map with Autoplay in lazer now")
+        while clock.model is None:
+            time.sleep(0.005)
+        print("game clock found")
+        end = min(events[-1][0] + 1, args.seconds)
+        while time.perf_counter() < clock.at(end) + end:
+            time.sleep(0.1)
+        report(clock, args)
+        return
 
+    from live.prepare import prepare  # needs torch; --watch runs with numpy and mss only
     osu = open(args.map, "rb").read()
     play = prepare(osu, level=args.level)
     print(f"simulated in lazer: {play['submission']['accuracy']:.2%}, {len(play['frames'])} moves")
@@ -232,6 +249,10 @@ def main():
         print(e)
     finally:
         tablet.close()
+    report(clock, args)
+
+
+def report(clock, args):
     g, o = (np.array(c) for c in zip(*[(f[0], f[1]) for f in clock.fits]))
     resid = (o - np.array([clock.at(x) for x in g])) * 1000
     icept, slope = clock.model
