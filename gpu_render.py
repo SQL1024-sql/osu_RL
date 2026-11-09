@@ -181,7 +181,7 @@ except ImportError:  # no triton (CPU-only torch): render() above still works
 
 if triton is not None:
     @triton.jit
-    def _render_kernel(out, per, valid, kind, start, end, spans, path, dots, HAS_DOTS: tl.constexpr,
+    def _render_kernel(out, per, valid, kind, start, end, spans, path, dots, HAS_DOTS: tl.constexpr, origin, HAS_ORIGIN: tl.constexpr,
                        X0_: tl.constexpr, Y0_: tl.constexpr, PX_: tl.constexpr, W_: tl.constexpr, H_: tl.constexpr,
                        V_: tl.constexpr, K_: tl.constexpr, FADE_OUT_: tl.constexpr,
                        FILL_: tl.constexpr, NUMBER_: tl.constexpr, RIM_: tl.constexpr, APPROACH_: tl.constexpr,
@@ -190,8 +190,12 @@ if triton is not None:
         b = tl.program_id(0)
         pix = tl.program_id(1) * BLOCK + tl.arange(0, BLOCK)
         inside = pix < W_ * H_
-        gx = X0_ + ((pix % W_).to(tl.float32) + 0.5) / PX_
-        gy = Y0_ + ((pix // W_).to(tl.float32) + 0.5) / PX_
+        if HAS_ORIGIN:  # a per-frame view (e.g. a close-up around the cursor) instead of the fixed frame
+            gx = tl.load(origin + b * 2) + ((pix % W_).to(tl.float32) + 0.5) / PX_
+            gy = tl.load(origin + b * 2 + 1) + ((pix // W_).to(tl.float32) + 0.5) / PX_
+        else:
+            gx = X0_ + ((pix % W_).to(tl.float32) + 0.5) / PX_
+            gy = Y0_ + ((pix // W_).to(tl.float32) + 0.5) / PX_
         t = tl.load(per + b * 4)
         r = tl.load(per + b * 4 + 1)
         pre = tl.load(per + b * 4 + 2)
@@ -286,19 +290,22 @@ def draw_dots(img, dots):
     return torch.maximum(img, (d[:, 2] - dist + 0.5).clamp(0, 1))
 
 
-def render_fast(p, dots=None):
-    """render() as one fused kernel on CUDA, with draw_dots() folded in (falls back to the torch code elsewhere)."""
+def render_fast(p, dots=None, origin=None, px=PX, w=W, h=H):
+    """render() as one fused kernel on CUDA, with draw_dots() folded in (falls back to the torch code elsewhere).
+    origin (B, 2): osu! pixel at each frame's top-left, for a w x h view at px frame pixels per osu! pixel (CUDA only)."""
     dev = p["per"].device
+    if origin is not None:
+        assert triton is not None and dev.type == "cuda"
     if triton is None or dev.type != "cuda":
         img = render(p)
         return img if dots is None else draw_dots(img, dots)
     b = p["per"].shape[0]
-    out = torch.empty(b, H, W, device=dev)
+    out = torch.empty(b, h, w, device=dev)
     block = 256
-    _render_kernel[(b, triton.cdiv(H * W, block))](
+    _render_kernel[(b, triton.cdiv(h * w, block))](
         out, p["per"], p["valid"].float(), p["kind"].int(), p["start"], p["end"], p["spans"], p["path"].contiguous(),
-        out if dots is None else dots.contiguous(), dots is not None,
-        X0, Y0, PX, W, H, V, K, float(FADE_OUT), FILL, NUMBER, RIM, APPROACH, BODY, BORDER, SPIN, RIM_W, APPROACH_W, block)
+        out if dots is None else dots.contiguous(), dots is not None, out if origin is None else origin.contiguous(), origin is not None,
+        X0, Y0, px, w, h, V, K, float(FADE_OUT), FILL, NUMBER, RIM, APPROACH, BODY, BORDER, SPIN, RIM_W, APPROACH_W, block)
     return out
 
 

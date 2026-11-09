@@ -16,3 +16,6 @@ replays/
 scratch/
 live/.env
 VMulti.Driver/
+# student runs: per-round DAgger data (GBs) and checkpoints; only the best round is committed (git add -f)
+results/experiments/*/*/plays*.pkl
+results/experiments/*/*/round*.pt

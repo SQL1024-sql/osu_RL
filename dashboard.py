@@ -93,10 +93,53 @@ def run_section(run_dir):
     return "".join(out)
 
 
+def student_section(log, updates=20000):
+    """student.py (Exp 019, 020: runs/<exp>-s<seed>.log) in the same layout as run_section: state line, bar, totals, one table row per round.
+    The bar weighs a round as 30% collecting, 60% training, 10% validating (rough wall-time shares)."""
+    lines = open(log, encoding="utf-8", errors="replace").read().splitlines()
+    procs = next((l.split()[0] for l in lines if "simulator processes" in l), "?")
+    exp, seed = os.path.basename(log)[:-len(".log")].split("-s")
+    rounds = {"019": 4}.get(exp, 8)
+    collect = [l.split() for l in lines if l.startswith("round") and "rollouts" in l]
+    vals = [float(l.split()[-1].rstrip("%")) for l in lines if l.startswith("round") and "validation" in l]
+    upd = [l.split() for l in lines if l.startswith("  update")]
+    step = int(upd[-1][1].split("/")[0]) if upd and len(collect) > len(vals) else 0
+    ms = upd[-1][-2].strip("(") + " ms" if upd else "—"
+    pct = min(1.0, (len(vals) + (0.3 + 0.6 * step / updates if len(collect) > len(vals) else 0)) / rounds * 0.95
+              + (0.03 if len(vals) >= rounds else 0))
+    elapsed = time.time() - os.path.getctime(log)
+    age = time.time() - os.path.getmtime(log)
+    if any(l.startswith("Traceback") for l in lines):
+        state = "crashed (see log)"
+    elif os.path.exists(f"results/experiments/{exp}-student/seed{seed}/summary.json"):
+        state, pct = "done (evaluated)", 1.0
+    elif age > 900:
+        state = f"stopped? (no update for {fmt_time(age)})"
+    elif len(vals) >= rounds:
+        state = "final test (real + HF maps)"
+    elif len(collect) > len(vals):
+        state = f"round {len(vals)}: training {step}/{updates} — ETA {fmt_time(elapsed / max(pct, 1e-3) - elapsed)}"
+    else:
+        state = f"round {len(vals)}: collecting 300 maps" + (f" — ETA {fmt_time(elapsed / pct - elapsed)}" if pct else "")
+    best = max(range(len(vals)), key=vals.__getitem__, default=None)
+    out = [f"<h2>{exp}-student-s{html.escape(seed)}</h2><p><b>{state}</b> · rounds={rounds} maps=300 updates={updates}"
+           f" procs={procs} seed={html.escape(seed)}</p>",
+           f"<div class=bar><div style='width:{pct * 100:.1f}%'></div></div>",
+           f"<p>round {min(len(vals) + 1, rounds)} / {rounds} ({pct * 100:.1f}%) · elapsed {fmt_time(elapsed)} · {ms}/update"
+           + (f" · best val {vals[best]:.2f}% at round {best}" if best is not None else "") + "</p>"]
+    if collect:
+        out.append("<table><tr><th>round</th><th>student</th><th>collect</th><th>labelled steps</th><th>val acc</th></tr>" + "".join(
+            f"<tr><td>{c[1].rstrip(':')}</td><td>{c[4].strip('(')}</td><td>{fmt_time(float(c[7]))}</td>"
+            f"<td>{int(c[9]) / 1e6:.2f}M</td><td>{f'{vals[i]:.2f}%' if i < len(vals) else '—'}</td></tr>"
+            for i, c in reversed(list(enumerate(collect)))) + "</table>")
+    return "".join(out)
+
+
 def page():
     status = open("runs/status.txt", encoding="utf-8").read() if os.path.exists("runs/status.txt") else "(no status note)"
     runs = sorted((d for d in glob.glob("runs/*/") if os.path.exists(os.path.join(d, "progress.csv"))), key=os.path.getmtime, reverse=True)
-    body = "".join(run_section(d.rstrip("/\\")) for d in runs[:4])
+    logs = sorted(f for f in glob.glob("runs/0[12][0-9]-s*.log") if time.time() - os.path.getmtime(f) < 3600)  # runs still writing
+    body = "".join(map(student_section, logs)) + "".join(run_section(d.rstrip("/\\")) for d in runs[:4])
     return (f"<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
             f"<meta http-equiv=refresh content=15><title>osu_rl status</title><style>{STYLE}</style>"
             f"<h1>osu_rl status</h1><p class=muted>{time.strftime('%Y-%m-%d %H:%M:%S')} · refreshes every 15 s</p>"

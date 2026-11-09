@@ -92,6 +92,7 @@ class Clock(threading.Thread):
         super().__init__(daemon=True)
         self.events, self.field, self.radius, self.cursor = events, field, radius, cursor
         self.fits = []  # (appear game time, wall - game, amp, rms)
+        self.tries = []  # every fade-in watched, fitted or not: (appear, [(wall, brightness, cursor near)]) for --log
         self.model = None  # (intercept, slope) of wall - game against game time
 
     @property
@@ -138,6 +139,7 @@ class Clock(threading.Thread):
                 if self.model is not None:
                     start = self.at(appear) + appear - WATCH_BEFORE
                     if time.perf_counter() > start:
+                        self.tries.append((appear, []))  # missed: the clock thread was late for it
                         continue
                     time.sleep(max(0.0, start - time.perf_counter()))
                     end = start + WATCH_BEFORE + fade + WATCH_AFTER
@@ -156,6 +158,7 @@ class Clock(threading.Thread):
                         break
                 if self.model is None:
                     samples = [s for s in samples if s[0] > end - fade - 0.05 - WATCH_BEFORE]
+                self.tries.append((appear, samples))
                 got = fit(samples, fade)
                 if got is not None:
                     self.fits.append((appear, got[0] - appear, *got[1:]))
@@ -261,7 +264,8 @@ def report(clock, args):
     if args.log:
         with open(args.log, "w", encoding="utf-8") as fh:
             json.dump({"lag_ms": args.lag_ms, "model": clock.model,
-                       "fits": [dict(zip(("appear", "offset", "amp", "rms"), f)) for f in clock.fits]}, fh)
+                       "fits": [dict(zip(("appear", "offset", "amp", "rms"), f)) for f in clock.fits],
+                       "tries": [dict(appear=a, samples=[(w, b, bool(n)) for w, b, n in ss]) for a, ss in clock.tries]}, fh)
 
 
 if __name__ == "__main__":
