@@ -1,14 +1,21 @@
-"""Plays a map in a real osu!lazer window through the virtual tablet (live/tablet.py), with nothing read from the game:
-the moves come from the simulator ahead of time (live.prepare), and the game clock is found by watching the screen,
-from the moment each hit circle starts fading in (its start time minus the preempt).
+"""Plays a map in a real osu!lazer window through the virtual tablet (live/tablet.py). The moves come from the
+simulator ahead of time (live.prepare); the game clock comes from tosu (live/tosu_clock.py, the default), which reads
+whether this exact map (MD5) is being played and its current time from lazer's memory, or with --clock screen from
+watching the screen, from the moment each hit circle starts fading in (its start time minus the preempt).
 
-    python -m live.screen_play maps/test/renatus_hard.osu --level expert
+    python -m live.screen_play maps/test/renatus_hard.osu --level expert            # tosu.exe must be running
+    python -m live.screen_play maps/test/renatus_hard.osu --level expert --dry-run  # follows the game, no input
 
-Start it, then start the same map in lazer (background dim 100%, no mods). It waits for the dark playfield.
---watch sends no input: it only times the game (start the map with Autoplay) and reports how steady the clock is.
+Start it, then start the same map in lazer with No Fail (it changes no timing and keeps the map going until the AI
+takes over; --clock screen also needs background dim 100%). Every move is the one due at the current game time, so a
+pause, seek or restart is followed. When osu! loses focus the play pauses (no input reaches the other window) and goes
+on once osu! is back in front; Ctrl+C stops it. With --clock screen, pixels count only while osu! is in front.
+--watch sends no input: it only times the game from the screen (start the map with Autoplay) and reports how steady
+that clock is.
 """
 import argparse
 import ctypes
+import hashlib
 import json
 import threading
 import time
@@ -20,6 +27,7 @@ from beatmap import SPINNER, parse_osu
 from live.tablet import M1, M2, LostFocus, Tablet, lazer_window
 
 user32 = ctypes.WinDLL("user32")
+user32.GetForegroundWindow.restype = ctypes.c_void_p
 WATCH_BEFORE, WATCH_AFTER = 0.25, 0.15  # seconds of samples around each fade-in
 DARK = 12  # mean brightness (0-255) of a gameplay playfield with a fully dimmed background
 
@@ -29,6 +37,7 @@ class Playfield:
 
     def __init__(self):
         hwnd = lazer_window()
+        self.hwnd = hwnd.value
         r, p = (ctypes.c_long * 4)(), (ctypes.c_long * 2)()
         user32.GetClientRect(hwnd, r)
         user32.ClientToScreen(hwnd, p)
@@ -40,6 +49,28 @@ class Playfield:
 
     def __call__(self, x, y):
         return self.x0 + x * self.scale, self.y0 + y * self.scale
+
+    def in_front(self):
+        return user32.GetForegroundWindow() == self.hwnd
+
+
+def wait_front(what):
+    """Blocks until lazer is the window in front. A fullscreen lazer is minimized while another window is in front,
+    so its playfield can only be laid out (Playfield) once it is back."""
+    hwnd, told = None, False
+    while hwnd is None:  # lazer may not be running yet
+        try:
+            hwnd = lazer_window().value
+        except SystemExit:
+            if not told:
+                print("waiting for osu!lazer to start ...", flush=True)
+                told = True
+            time.sleep(0.5)
+    if user32.GetForegroundWindow() != hwnd:
+        print(f"waiting for osu! to be the window in front ({what}) ...", flush=True)
+        while user32.GetForegroundWindow() != hwnd:
+            time.sleep(0.05)
+        time.sleep(1)  # let alt-tab and the window settle
 
 
 def seg_dist(p, a, b):
@@ -120,6 +151,10 @@ class Clock(threading.Thread):
 
     def grab(self, sct, box):
         v = float(np.asarray(sct.grab(box))[:, :, :3].mean())
+        if not self.field.in_front():
+            # the screen shows another window then: a dark app reads as the dimmed playfield and its UI as fade-ins,
+            # which would set the clock wrong, so it reads as bright (never gameplay, never a clean fade-in)
+            v = 255.0
         return v, time.perf_counter()  # GDI capture waits for the next composition: the image is from about now
 
     def run(self):
@@ -196,11 +231,15 @@ def main():
     p.add_argument("--seconds", type=float, default=1e9, help="stop after this much of the map")
     p.add_argument("--log", help="write every fade-in fit here (json)")
     p.add_argument("--watch", action="store_true", help="no input, only time the game (play the map with Autoplay)")
+    p.add_argument("--clock", default="tosu", choices=["tosu", "screen"],
+                   help="tosu: read the game clock from tosu (must be running); screen: find it from fade-ins")
+    p.add_argument("--dry-run", action="store_true", help="follow the clock and print the moves, but send no input")
     args = p.parse_args()
     if args.watch:
         args.lag_ms = 0.0
         bm = parse_osu(args.map)
         events = fade_ins(bm)
+        wait_front("song select of this map")
         clock = Clock(events, Playfield(), bm.radius, lambda: (-1e4, -1e4))
         clock.start()
         print(f"{len(events)} clean fade-ins to time the game by; start the map with Autoplay in lazer now")
@@ -217,42 +256,86 @@ def main():
     osu = open(args.map, "rb").read()
     play = prepare(osu, level=args.level)
     print(f"simulated in lazer: {play['submission']['accuracy']:.2%}, {len(play['frames'])} moves")
+    if args.lag_ms is None and args.clock == "tosu":
+        args.lag_ms = 0.0  # tosu reads the game's own clock: no capture path to make up for
     if args.lag_ms is None:
         from live.latency import measure  # live.latency imports this module
+        wait_front("song select, cursor showing")
         print("measuring the loop latency (lazer must show its cursor, e.g. song select) ...")
         # the fade-ins are seen late by the same display and capture path, and the moves arrive late by the input path
         args.lag_ms = -float(np.median(measure(20)))
     bm = parse_osu(args.map)
-    events = fade_ins(bm)
+    wait_front("song select of this map")
     field = Playfield()
-    tablet = Tablet()
+    tablet = None if args.dry_run else Tablet()
     pos = [0.0, 0.0]
-    clock = Clock(events, field, bm.radius, lambda: pos)
-    clock.start()
-    print(f"lag {args.lag_ms:.1f} ms; {len(events)} clean fade-ins to time the game by; start the map in lazer now")
-    while clock.model is None:
-        time.sleep(0.005)
-    print("game clock found")
-    lag = args.lag_ms / 1000
+    if args.clock == "tosu":
+        from live.tosu_clock import TosuClock
+        clock = TosuClock(hashlib.md5(osu).hexdigest())
+        clock.start()
+        print(f"lag {args.lag_ms:.1f} ms; game clock from tosu; start the map in lazer now", flush=True)
+    else:
+        events = fade_ins(bm)
+        clock = Clock(events, field, bm.radius, lambda: pos)
+        clock.start()
+        print(f"lag {args.lag_ms:.1f} ms; {len(events)} clean fade-ins to time the game by; start the map in lazer now")
+    frames = play["frames"]
+    times = np.array([f[0] for f in frames]) / 1000
+    lag, end = args.lag_ms / 1000, min(times[-1], args.seconds)
+    i, live, sent = 0, False, 0
     try:
-        for t, x, y, keys in play["frames"]:
-            if t > args.seconds * 1000:
+        while True:
+            model = clock.model
+            if model is None:  # no clock yet, or paused / restarted / left the map
+                if live:
+                    print("game clock lost: waiting", flush=True)
+                    if tablet:
+                        tablet.release()
+                    live = False
+                time.sleep(0.002)
+                continue
+            if not live:
+                print("game clock found", flush=True)
+                live = True
+            icept, slope = model
+            game = (time.perf_counter() - lag - icept) / (1 + slope)  # wall = icept + slope * game + game + lag
+            if game > end:
                 break
-            due = clock.at(t / 1000) + t / 1000 + lag
-            wait = due - time.perf_counter()
-            if wait < -0.05:
-                continue  # already past
-            if wait > 0:
-                time.sleep(max(0.0, wait - 0.001))
-                while time.perf_counter() < due:
+            # the move due now, looked up by game time rather than taken in order, so a seek or restart is followed
+            j = int(np.searchsorted(times, game, side="right")) - 1
+            if j >= 0 and j != i - 1:
+                t, x, y, keys = frames[j]
+                pos[:] = field(x, y)
+                buttons = (M1 if keys & 1 else 0) | (M2 if keys & 2 else 0)
+                if tablet:
+                    try:
+                        tablet.send(*pos, buttons)
+                    except LostFocus:  # the tablet has let go of the buttons; moves due meanwhile are skipped
+                        print("osu! lost focus: paused; click back into osu! to resume (Ctrl+C stops)", flush=True)
+                        while not field.in_front():
+                            time.sleep(0.01)
+                        print("resumed", flush=True)
+                elif sent % 120 == 0:
+                    print(f"dry run: game {game:7.2f} s, move {j} at osu! ({x:.0f}, {y:.0f}) buttons {buttons}", flush=True)
+                sent += 1
+                i = j + 1
+            if i < len(times):  # sleep until the next move is due; the clock is looked at again then
+                due = icept + (1 + slope) * times[i] + lag
+                wait = due - time.perf_counter()
+                if wait > 0.002:
+                    time.sleep(min(wait - 0.001, 0.05))
+                spin = min(due, time.perf_counter() + 0.002)  # the last stretch spins: sleep is too coarse
+                while time.perf_counter() < spin:
                     pass
-            pos[:] = field(x, y)
-            tablet.send(*pos, (M1 if keys & 1 else 0) | (M2 if keys & 2 else 0))
-    except LostFocus as e:
-        print(e)
     finally:
-        tablet.close()
-    report(clock, args)
+        if tablet:
+            tablet.close()
+    if args.clock == "tosu":
+        he = clock.hit_errors
+        print(f"sent {sent} moves; lazer hit errors: {len(he)}, mean {np.mean(he) if he else float('nan'):+.1f} ms"
+              f" (positive: late; --lag-ms {args.lag_ms - (np.mean(he) if he else 0):.1f} would centre them)")
+    else:
+        report(clock, args)
 
 
 def report(clock, args):

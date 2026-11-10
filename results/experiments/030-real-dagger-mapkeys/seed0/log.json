@@ -1,0 +1,99 @@
+{
+ "args": {
+  "recs": [
+   "runs/live_rec/1_train_-_Your_song_Insane_776730_-20261111-011239.npz",
+   "runs/live_rec/2_train_-_Dokidoki_kokoro_flavor_Lavender_s_Hard_921152_-20261111-011807.npz",
+   "runs/live_rec/3_train_-_Movements_Feat._MaHi_Original_Mix_Speed_Up_Ver._Joey_s_Insane_531556_-20261111-012014.npz",
+   "runs/live_rec/4_train_-_Iza_Mairimasu_Hard_feat._GlaZe_3795827_-20261111-012234.npz",
+   "runs/live_rec/renatus_hard-20261111-002535.npz",
+   "runs/live_rec/renatus_hard-20261111-004231.npz",
+   "runs/live_play/20261111-021148-rec.npz",
+   "runs/live_play/20261111-021543-rec.npz",
+   "runs/live_play/20261111-021758-rec.npz"
+  ],
+  "val": [
+   "runs/live_rec/5_val_-_103019_-20261111-012426.npz"
+  ],
+  "split": 0.7,
+  "maps": [
+   "maps/test/*.osu",
+   "runs/maps/live_set/*.osu"
+  ],
+  "init": "results/experiments/020-student/seed0/round6.pt",
+  "clicks": "map",
+  "plays": [
+   "results/experiments/020-student/seed0/plays7.pkl"
+  ],
+  "real_frac": 0.5,
+  "synth_pool": 300,
+  "updates": 6000,
+  "lr": 0.0001,
+  "every": 500,
+  "seed": 0,
+  "out": "results/experiments/030-real-dagger-mapkeys/seed0"
+ },
+ "split_ms": null,
+ "best_update": 4500,
+ "log": [
+  {
+   "update": 500,
+   "train_loss": 0.31100738048553467,
+   "held_loss": 0.27381184697151184
+  },
+  {
+   "update": 1000,
+   "train_loss": 0.2983059287071228,
+   "held_loss": 0.24350658245384693
+  },
+  {
+   "update": 1500,
+   "train_loss": 0.2834111154079437,
+   "held_loss": 0.22674044780433178
+  },
+  {
+   "update": 2000,
+   "train_loss": 0.2934539318084717,
+   "held_loss": 0.21571296639740467
+  },
+  {
+   "update": 2500,
+   "train_loss": 0.2346380352973938,
+   "held_loss": 0.20822611637413502
+  },
+  {
+   "update": 3000,
+   "train_loss": 0.2469812035560608,
+   "held_loss": 0.21298668906092644
+  },
+  {
+   "update": 3500,
+   "train_loss": 0.21496881544589996,
+   "held_loss": 0.20839199796319008
+  },
+  {
+   "update": 4000,
+   "train_loss": 0.21711868047714233,
+   "held_loss": 0.20004751905798912
+  },
+  {
+   "update": 4500,
+   "train_loss": 0.19324856996536255,
+   "held_loss": 0.1979688461869955
+  },
+  {
+   "update": 5000,
+   "train_loss": 0.1844688355922699,
+   "held_loss": 0.20139979757368565
+  },
+  {
+   "update": 5500,
+   "train_loss": 0.19889363646507263,
+   "held_loss": 0.2031855806708336
+  },
+  {
+   "update": 6000,
+   "train_loss": 0.17622576653957367,
+   "held_loss": 0.2059313729405403
+  }
+ ]
+}
