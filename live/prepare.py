@@ -14,10 +14,10 @@ import tempfile
 from stable_baselines3 import PPO
 
 from beatmap import parse_osu
-from env import OsuEnv, k_from_obs
-from play import run
+from state.env import OsuEnv, k_from_obs
+from state.play import run
 from replay import KEY_BITS, write_osr
-from verify import DOTNET, DOTNET_ROOT, OSU_REPO
+from state.verify import DOTNET, DOTNET_ROOT, OSU_REPO
 
 # checkpoints of the Exp 012 run as difficulty levels (H6 validation acc in brackets)
 LEVELS = {

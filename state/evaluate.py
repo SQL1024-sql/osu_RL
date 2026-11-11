@@ -5,7 +5,7 @@
    autoplay baseline
 3. the real-map plays are re-judged by osu!lazer (verify.py) and the replays are kept
 
-    python evaluate.py runs/20261031-0300-full120 --hz 120
+    python -m state.evaluate runs/20261031-0300-full120 --hz 120
 """
 import argparse
 import glob
@@ -19,10 +19,10 @@ import numpy as np
 from stable_baselines3 import PPO
 
 from beatmap import SLIDER, SPINNER, parse_osu, random_beatmap
-from env import OsuEnv, k_from_obs
-from play import oracle, run
-from train import val_maps
-from verify import verify
+from state.env import OsuEnv, k_from_obs
+from state.play import oracle, run
+from state.train import val_maps
+from state.verify import verify
 
 TEST_SEEDS = range(20_000, 20_050)
 

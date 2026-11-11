@@ -1,7 +1,7 @@
 """render.py on the GPU, for whole batches of frames: the CPU only looks up which objects are on screen at each
 frame's time (Scene.window); distances, colours and compositing run in one torch call. Same parameters as render.py.
 
-    python gpu_render.py maps/test/renatus_hard.osu      # compares against render.py and times both
+    python -m vision.gpu_render maps/test/renatus_hard.osu      # compares against render.py and times both
 """
 import sys
 
@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from beatmap import SLIDER, SPINNER, parse_osu
-from render import (APPROACH, APPROACH_W, BODY, BORDER, FADE_OUT, FILL, NUMBER, PX, RIM, RIM_W, SPIN, H, W, X0, Y0)
+from vision.render import (APPROACH, APPROACH_W, BODY, BORDER, FADE_OUT, FILL, NUMBER, PX, RIM, RIM_W, SPIN, H, W, X0, Y0)
 
 V = 12  # objects drawn per frame at most (the earliest V of those on screen)
 K = 24  # points a slider path is resampled to
@@ -312,7 +312,7 @@ def render_fast(p, dots=None, origin=None, px=PX, w=W, h=H):
 if __name__ == "__main__":
     import time
 
-    from render import Renderer
+    from vision.render import Renderer
 
     bm = parse_osu(sys.argv[1])
     dev = "cuda" if torch.cuda.is_available() else "cpu"

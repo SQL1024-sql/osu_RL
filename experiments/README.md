@@ -1,9 +1,9 @@
 # 實驗設定檔
 
-每個 `.json` 是一個可以重跑的假設，用 [run.py](../run.py) 執行：
+每個 `.json` 是一個可以重跑的假設，用 [state/run.py](../state/run.py) 執行：
 
 ```bash
-python run.py experiments/015-tail-miss.json --seed 2
+python -m state.run experiments/015-tail-miss.json --seed 2
 ```
 
 ## run.py 的參數

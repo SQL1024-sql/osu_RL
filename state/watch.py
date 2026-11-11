@@ -1,7 +1,7 @@
 """Plays the osu!standard difficulties of a .osz (or one .osu) with a model and writes a replay per difficulty.
 
-    python watch.py "path/to/map.osz" --out replays/renatus
-    python watch.py "path/to/map.osz" --out replays/renatus --diff Hard --open
+    python -m state.watch "path/to/map.osz" --out replays/renatus
+    python -m state.watch "path/to/map.osz" --out replays/renatus --diff Hard --open
 --open starts the local osu!lazer build (OSU_REPO) with the .osz and the replays: it imports the map first, then the
 replays, which it can then play back. Replays only match the exact .osu they were made from (osu! looks maps up by MD5).
 """
@@ -15,11 +15,11 @@ import zipfile
 from stable_baselines3 import PPO
 
 from beatmap import parse_osu
-from env import OsuEnv, k_from_obs
+from state.env import OsuEnv, k_from_obs
 from get_maps import is_standard
-from play import run
+from state.play import run
 from replay import write_osr
-from verify import DOTNET_ROOT, OSU_REPO
+from state.verify import DOTNET_ROOT, OSU_REPO
 
 LAZER = os.path.join(OSU_REPO, "osu.Desktop", "bin", "Debug", "net10.0", "osu!.exe")
 

@@ -48,7 +48,7 @@ def run_single_job(config_path, seed, device="hybrid", extra_args=None):
     """Runs one experiment seed via run.py."""
     cfg_name = os.path.splitext(os.path.basename(config_path))[0]
     job_name = f"{cfg_name}-s{seed}"
-    cmd = [sys.executable, "run.py", config_path, "--seed", str(seed), "--device", device]
+    cmd = [sys.executable, "-m", "state.run", config_path, "--seed", str(seed), "--device", device]
     if extra_args:
         cmd.extend(extra_args)
 
@@ -144,7 +144,7 @@ def main():
     if args.dry_run:
         print("[Dry Run] Commands that would be executed:")
         for cfg, s, dev, rest in jobs:
-            print(f"  python run.py {cfg} --seed {s} --device {dev} {' '.join(rest)}")
+            print(f"  python -m state.run {cfg} --seed {s} --device {dev} {' '.join(rest)}")
         return
 
     results_table = []

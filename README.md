@@ -61,18 +61,18 @@
 
 ## 這個專案在做什麼
 
-1. **模擬器**（[env.py](env.py)、[beatmap.py](beatmap.py)）：Gymnasium 環境，120 Hz，整數 ms 時鐘。它讀取真正的 `.osu` 檔，涵蓋以下機制：
+1. **模擬器**（[env.py](state/env.py)、[beatmap.py](beatmap.py)）：Gymnasium 環境，120 Hz，整數 ms 時鐘。它讀取真正的 `.osu` 檔，涵蓋以下機制：
    - circle / slider / spinner
    - slider 的 L / P / B / C 四種曲線（含紅點分段、長度裁切）
    - 變速（SV）、tick / repeat / tail
    - follow circle 追蹤、stacking、K1 / K2 雙鍵
    - classic note lock（`LegacyHitPolicy`），以及 OD 對應的判定窗口
-2. **訓練**（[train.py](train.py)）：每回合隨機生成一張 40 個物件的譜（[`random_osu`](beatmap.py)）。訓練從來不用真實譜，避免背譜。
-3. **評估**（[evaluate.py](evaluate.py)）：
+2. **訓練**（[train.py](state/train.py)）：每回合隨機生成一張 40 個物件的譜（[`random_osu`](beatmap.py)）。訓練從來不用真實譜，避免背譜。
+3. **評估**（[evaluate.py](state/evaluate.py)）：
    - 用 5 張固定的驗證譜挑 checkpoint；
    - 在測試集上回報成績：26 張真實譜，加上 50 張沒看過的隨機譜；
    - 和腳本寫的完美玩家（autoplay）對照。
-4. **驗證**（[verify.py](verify.py)、[lazer/TestSceneOsuRLReplay.cs](lazer/TestSceneOsuRLReplay.cs)）：模擬器打一次並寫出 `.osr`，osu!lazer 在 headless 模式播放這個 replay，最後逐個物件比對兩邊的判定。
+4. **驗證**（[verify.py](state/verify.py)、[lazer/TestSceneOsuRLReplay.cs](lazer/TestSceneOsuRLReplay.cs)）：模擬器打一次並寫出 `.osr`，osu!lazer 在 headless 模式播放這個 replay，最後逐個物件比對兩邊的判定。
 
 ### 模擬器有多準
 
@@ -113,21 +113,21 @@
 
 ```bash
 pip install -r requirements.txt
-python test_env.py
+python -m state.test_env      # 所有指令都在 repo 根目錄執行
 ```
 
 用訓練好的模型打一張譜，輸出 replay（`--hz` 要和訓練時相同）：
 
 ```bash
-python play.py path/to/map.osu --model results/20261101-0021-pool120/best_model.zip --hz 120 --out replay.osr
+python -m state.play path/to/map.osu --model results/20261101-0021-pool120/best_model.zip --hz 120 --out replay.osr
 ```
 
 `.osr` 可以直接拖進 osu! 觀看（譜面要先在遊戲裡）。
 
-或用 `watch.py`：給它一個 `.osz`，它會幫每個 osu!standard 難度產生 replay，存到指定資料夾。加 `--open` 會用本機 build 的 osu!lazer 一起匯入譜面和 replay（lazer 匯入 `.osz` 後會刪掉檔案，所以交給它的是輸出資料夾裡的複本）：
+或用 `state/watch.py`：給它一個 `.osz`，它會幫每個 osu!standard 難度產生 replay，存到指定資料夾。加 `--open` 會用本機 build 的 osu!lazer 一起匯入譜面和 replay（lazer 匯入 `.osz` 後會刪掉檔案，所以交給它的是輸出資料夾裡的複本）：
 
 ```bash
-python watch.py "path/to/map.osz" --out replays/my_map --diff Hard --open
+python -m state.watch "path/to/map.osz" --out replays/my_map --diff Hard --open
 ```
 
 訓練需要真實譜。資料來源是 Hugging Face 的 [project-riz/osu-beatmaps](https://huggingface.co/datasets/project-riz/osu-beatmaps)，下面的指令會串流下載一個分片（約 1GB），只留下 osu!standard 的 `.osu` 檔，音檔不會寫進硬碟：
@@ -141,22 +141,22 @@ curl -sL https://huggingface.co/datasets/project-riz/osu-beatmaps/resolve/main/c
 訓練（20M 步：Windows 純 CPU 約 1.5 小時；Linux / WSL2 加 `--device hybrid` 約 1 小時，需要 CUDA 版 PyTorch）：
 
 ```bash
-python train.py --steps 20e6 --hz 120 --gamma 0.995 --diff wide --timing 0.3 --spin-shaping --spin-free-press --pool maps/hf/train --pool-frac 0.5 --device hybrid --name pool120 --eval-map maps/test/renatus_insane.osu
+python -m state.train --steps 20e6 --hz 120 --gamma 0.995 --diff wide --timing 0.3 --spin-shaping --spin-free-press --pool maps/hf/train --pool-frac 0.5 --device hybrid --name pool120 --eval-map maps/test/renatus_insane.osu
 ```
 
 錯誤分析，以及在 HF 測試譜上評估：
 
 ```bash
-python analyze.py results/<run>/best_model.zip maps/test/*.osu --hz 120
+python -m state.analyze results/<run>/best_model.zip maps/test/*.osu --hz 120
 ```
 
 ```bash
-python eval_hf.py results/<run> --hz 120
+python -m state.eval_hf results/<run> --hz 120
 ```
 
 ### 只看畫面的學生（Exp 019）
 
-`student.py` 訓練一個只看畫面（`gpu_render.py` 畫出的 160×120 灰階畫面）的學生，模仿讀譜面的 RL 老師（DAgger），設計和成功標準在 [RESEARCH.md](RESEARCH.md) 的 Exp 019。
+`vision/student.py` 訓練一個只看畫面（`vision/gpu_render.py` 畫出的 160×120 灰階畫面）的學生，模仿讀譜面的 RL 老師（DAgger），設計和成功標準在 [RESEARCH.md](RESEARCH.md) 的 Exp 019。
 
 需要 Linux 或 WSL2 和 NVIDIA GPU：
 
@@ -177,23 +177,23 @@ python eval_hf.py results/<run> --hz 120
 4. 冒煙測試（幾分鐘，只確認流程跑得通，成績接近 0 是正常的）：
 
    ```bash
-   python student.py --smoke
+   python -m vision.student --smoke
    ```
 
 5. 正式訓練。同時跑模擬器的程序數會自動設成「這台能用的 CPU 核心數減 2」（會看 CPU 親和性和容器的 CPU 配額），開頭會印出來。一台同時跑幾個 seed，就加 `--share` 平分核心。訓練要跑一段時間，用 `nohup` 讓它在斷線後繼續跑。只跑一個 seed：
 
    ```bash
-   mkdir -p runs && nohup python student.py --seed 0 > runs/019-s0.log 2>&1 &
+   mkdir -p runs && nohup python -m vision.student --seed 0 > runs/019-s0.log 2>&1 &
    ```
 
    同一台同時跑兩個 seed（例如閒置的 H100，顯存很夠，CPU 核心兩邊平分）：
 
    ```bash
-   mkdir -p runs && nohup python student.py --seed 0 --share 2 > runs/019-s0.log 2>&1 &
+   mkdir -p runs && nohup python -m vision.student --seed 0 --share 2 > runs/019-s0.log 2>&1 &
    ```
 
    ```bash
-   nohup python student.py --seed 1 --share 2 > runs/019-s1.log 2>&1 &
+   nohup python -m vision.student --seed 1 --share 2 > runs/019-s1.log 2>&1 &
    ```
 
    ```bash
@@ -221,14 +221,14 @@ python get_maps.py
 `get_maps.py` 會收集 25 張譜。第 26 張 BAKENOHANA [What Has Been Lost] 要自己從 osu! 下載，放進 `maps/test/bakenohana.osu`。
 
 ```bash
-python evaluate.py runs/<run> --hz 120
+python -m state.evaluate runs/<run> --hz 120
 ```
 
 ```bash
-python verify.py --fuzz 30 --noise 0 0.3 1.0 --hz 120 --out runs/verify/fuzz
+python -m state.verify --fuzz 30 --noise 0 0.3 1.0 --hz 120 --out runs/verify/fuzz
 ```
 
-`verify.py` 用 `DOTNET_ROOT` 環境變數找 .NET 10（沒設定時用 Windows 的 `%LOCALAPPDATA%\Microsoft\dotnet10`），ppy/osu clone 的位置用 `OSU_REPO` 環境變數指定。
+`state/verify.py` 用 `DOTNET_ROOT` 環境變數找 .NET 10（沒設定時用 Windows 的 `%LOCALAPPDATA%\Microsoft\dotnet10`），ppy/osu clone 的位置用 `OSU_REPO` 環境變數指定。
 
 ## 跟 AI 在 lazer 多人房一起打
 
@@ -250,7 +250,7 @@ Discord 機器人透過 HTTP 控制它（進房、離開、換難度、單人打
 任何人都可以用不同的 seed 重跑同一個假設：
 
 ```bash
-python run.py experiments/015-tail-miss.json --seed 2
+python -m state.run experiments/015-tail-miss.json --seed 2
 ```
 
 這個指令會依序：
@@ -263,23 +263,42 @@ python run.py experiments/015-tail-miss.json --seed 2
 
 ## 專案結構
 
+程式分成兩個資料夾：[state/](state/) 是直接讀譜面物件資料的 RL 模型，[vision/](vision/) 是只看畫面的學生。所有指令都在 repo 根目錄用 `python -m state.xxx` / `python -m vision.xxx` 執行，`maps/`、`results/`、`runs/` 都是相對根目錄的路徑。
+
+**state/：讀譜面資料的 RL 模型**
+
+| 檔案 | 內容 |
+|---|---|
+| [env.py](state/env.py) | Gymnasium 環境與判定邏輯 |
+| [train.py](state/train.py) | PPO 訓練、驗證集評估、紀錄 |
+| [play.py](state/play.py) | 模型或 autoplay 打譜，輸出 `.osr` |
+| [run.py](state/run.py) | 照 `experiments/*.json` 跑一個 seed：訓練 → 挑 checkpoint → 測試 → summary |
+| [select_ckpt.py](state/select_ckpt.py) | 用 25 張驗證譜重新挑 checkpoint（H6） |
+| [watch.py](state/watch.py) | `.osz` 每個難度產生 replay 到指定資料夾，可直接用 lazer 打開 |
+| [verify.py](state/verify.py) | 用 osu!lazer 重新判定並逐項比對 |
+| [evaluate.py](state/evaluate.py) | checkpoint 挑選、測試集、輸出 `results/` |
+| [eval_hf.py](state/eval_hf.py) | 在 60 張 HF 測試譜上評估 |
+| [analyze.py](state/analyze.py) | 錯誤分析：依情境統計 miss / 100 / 50 |
+| [grouped_vec_env.py](state/grouped_vec_env.py) | 一個 process 跑多個 env（Exp 008） |
+| [test_env.py](state/test_env.py) | 模擬器的自我檢查 |
+| [export_weights.py](state/export_weights.py) | 把模型權重匯出給 merge_ppyosu 的 C# mod |
+
+**vision/：只看畫面的學生**
+
+| 檔案 | 內容 |
+|---|---|
+| [student.py](vision/student.py) | 用 DAgger 模仿 state/ 的老師，只看畫面（Exp 019 起） |
+| [render.py](vision/render.py) | CPU 版畫面繪製（lazer 會顯示的圓、slider、approach circle） |
+| [gpu_render.py](vision/gpu_render.py) | GPU 版批次繪製，參數和 render.py 相同 |
+
+**根目錄：共用與工具**
+
 | 檔案 | 內容 |
 |---|---|
 | [beatmap.py](beatmap.py) | `.osu` 解析、slider 路徑、stacking、隨機譜生成 |
-| [env.py](env.py) | Gymnasium 環境與判定邏輯 |
-| [train.py](train.py) | PPO 訓練、驗證集評估、紀錄 |
-| [play.py](play.py) | 模型或 autoplay 打譜，輸出 `.osr` |
-| [run.py](run.py) | 照 `experiments/*.json` 跑一個 seed：訓練 → 挑 checkpoint → 測試 → summary |
-| [select_ckpt.py](select_ckpt.py) | 用 25 張驗證譜重新挑 checkpoint（H6） |
-| [watch.py](watch.py) | `.osz` 每個難度產生 replay 到指定資料夾，可直接用 lazer 打開 |
 | [replay.py](replay.py) | `.osr` 寫入 |
-| [verify.py](verify.py) | 用 osu!lazer 重新判定並逐項比對 |
-| [evaluate.py](evaluate.py) | checkpoint 挑選、測試集、輸出 `results/` |
 | [get_maps.py](get_maps.py) | 從 ppy/osu 測試資源收集真實測試譜 |
 | [get_hf_maps.py](get_hf_maps.py) | 從 HF 資料集抽出 osu!standard 譜，依 beatmapset 切 train / val / test |
-| [eval_hf.py](eval_hf.py) | 在 60 張 HF 測試譜上評估 |
-| [analyze.py](analyze.py) | 錯誤分析：依情境統計 miss / 100 / 50 |
-| [grouped_vec_env.py](grouped_vec_env.py) | 一個 process 跑多個 env（Exp 008） |
 | [dashboard.py](dashboard.py) | 區網狀態網頁（訓練 / 評估進度） |
 | [queue_runs.py](queue_runs.py) | 依序跑多個實驗 / seed |
 | [plot.py](plot.py) | 畫訓練曲線 |

@@ -1,8 +1,8 @@
 """Replays plays in osu!lazer's real judgement engine (headless) and compares every judgement with the simulator.
 
-    python verify.py maps/test/*.osu --model runs/y/model --hz 120 --out runs/y/verify     # a model on real maps
-    python verify.py maps/test/*.osu --noise 0 0.3 1 --hz 120 --out runs/verify/real     # scripted player on real maps
-    python verify.py --fuzz 30 --noise 0 0.3 1 --hz 120 --out runs/verify/fuzz/f        # random maps
+    python -m state.verify maps/test/*.osu --model runs/y/model --hz 120 --out runs/y/verify     # a model on real maps
+    python -m state.verify maps/test/*.osu --noise 0 0.3 1 --hz 120 --out runs/verify/real     # scripted player on real maps
+    python -m state.verify --fuzz 30 --noise 0 0.3 1 --hz 120 --out runs/verify/fuzz/f        # random maps
 """
 import argparse
 import os
@@ -14,8 +14,8 @@ import numpy as np
 from stable_baselines3 import PPO
 
 from beatmap import SLIDER, SPINNER, parse_osu, random_osu
-from env import OsuEnv, k_from_obs
-from play import oracle, run
+from state.env import OsuEnv, k_from_obs
+from state.play import oracle, run
 from replay import write_osr
 
 OSU_REPO = os.path.abspath(os.environ.get("OSU_REPO", "../ppy-osu"))

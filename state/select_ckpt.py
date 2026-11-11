@@ -1,7 +1,7 @@
 """Re-picks a run's checkpoint with a bigger, harder validation set (20 windows of held-out HF val maps + the 5 random
 maps), then scores only that checkpoint on the test sets. Selection never looks at test maps.
 
-    python select_ckpt.py runs/<run> --hz 120
+    python -m state.select_ckpt runs/<run> --hz 120
 """
 import argparse
 import glob
@@ -14,8 +14,8 @@ import numpy as np
 from stable_baselines3 import PPO
 
 from beatmap import parse_osu, window
-from evaluate import model_policy, pct, play
-from train import val_maps
+from state.evaluate import model_policy, pct, play
+from state.train import val_maps
 
 N_HF_VAL = 20
 

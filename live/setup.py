@@ -16,7 +16,7 @@ import subprocess
 import sys
 
 from live.hub import Api
-from verify import DOTNET, DOTNET_ROOT, OSU_REPO
+from state.verify import DOTNET, DOTNET_ROOT, OSU_REPO
 
 ENV = os.path.join("live", ".env")
 LAZER_COMMIT = "845336e3c1235f16b24bc4380fa7a6dc0cf7cd91"  # the ppy/osu commit the harness is tested on

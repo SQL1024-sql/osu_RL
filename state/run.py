@@ -1,7 +1,7 @@
 """Runs one seed of an experiment config end to end, so anyone can reproduce or extend a hypothesis test.
 
-    python run.py experiments/015-tail-miss.json --seed 2
-    python run.py experiments/015-tail-miss.json --seed 2 --dry-run     # print the commands only
+    python -m state.run experiments/015-tail-miss.json --seed 2
+    python -m state.run experiments/015-tail-miss.json --seed 2 --dry-run     # print the commands only
 train.py with the config's settings -> checkpoint picked on the 25-map validation set (select_ckpt.py, H6) -> the
 26 real test maps and 60 HF test maps -> results/experiments/<id>/seed<N>/summary.json (+ the picked model).
 The criteria in a config are the machine-checkable part of the pre-registration in RESEARCH.md; they are meant for the
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     cfg = json.load(open(args.config, encoding="utf-8"))
     train = dict(cfg["train"], **({"steps": args.steps} if args.steps else {}))
     name = f"{cfg['id']}-s{args.seed}"
-    cmd = [sys.executable, "train.py", *train_flags(train), "--seed", str(args.seed), "--device", args.device, "--name", name]
+    cmd = [sys.executable, "-m", "state.train", *train_flags(train), "--seed", str(args.seed), "--device", args.device, "--name", name]
     print(" ".join(cmd))
     if args.dry_run:
         sys.exit(0)
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     subprocess.run(cmd, check=True)
     run_dir = sorted(glob.glob(os.path.join("runs", f"*-{name}")))[-1]
     os.makedirs(os.path.join("results", os.path.basename(run_dir)), exist_ok=True)
-    subprocess.run([sys.executable, "select_ckpt.py", run_dir, "--hz", str(train["hz"]), "--every", str(args.every)], check=True)
+    subprocess.run([sys.executable, "-m", "state.select_ckpt", run_dir, "--hz", str(train["hz"]), "--every", str(args.every)], check=True)
     sel = json.load(open(os.path.join("results", os.path.basename(run_dir), "select25.json")))
 
     out = os.path.join("results", "experiments", cfg["id"], f"seed{args.seed}")

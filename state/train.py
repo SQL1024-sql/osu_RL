@@ -14,11 +14,11 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 import numpy as np
 import torch
 
-import env as env_mod
+import state.env as env_mod
 from beatmap import parse_osu, random_beatmap, window
-from env import OsuEnv, K
-from grouped_vec_env import GroupedSubprocVecEnv
-from play import run
+from state.env import OsuEnv, K
+from state.grouped_vec_env import GroupedSubprocVecEnv
+from state.play import run
 
 
 VAL_SEEDS = range(10_000, 10_005)  # fixed random maps for picking checkpoints; the real map stays a pure test

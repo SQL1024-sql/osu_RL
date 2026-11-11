@@ -1,7 +1,7 @@
 """What lazer shows of a beatmap at a given moment, as the small grayscale frame a vision model would see: the 4:3
 middle of a 16:9 screen, background fully dimmed, no cursor (the cursor is drawn in separately in training).
 
-    python render.py maps/test/renatus_hard.osu 12.5     # writes runs/render.png for that time (seconds)
+    python -m vision.render maps/test/renatus_hard.osu 12.5     # writes runs/render.png for that time (seconds)
 """
 import sys
 

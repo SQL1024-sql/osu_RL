@@ -1,6 +1,6 @@
 """Plays a run's best model on a fixed sample of the held-out HF test maps (maps/hf/test), next to autoplay.
 
-    python eval_hf.py results/20261031-1933-timing120 --hz 120
+    python -m state.eval_hf results/20261031-1933-timing120 --hz 120
 Writes hf_test.json into that results folder. Full maps, simulator only (osu!lazer re-judging stays on maps/test).
 """
 import argparse
@@ -13,8 +13,8 @@ import numpy as np
 from stable_baselines3 import PPO
 
 from beatmap import parse_osu
-from evaluate import model_policy, pct, play
-from play import oracle
+from state.evaluate import model_policy, pct, play
+from state.play import oracle
 
 N_MAPS = 60
 

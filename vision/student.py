@@ -8,8 +8,8 @@ Everything that can runs on the GPU: sampling training steps, looking up what is
 augmentation, and the teacher's and student's inference for all environments at once. Worker processes only step the
 simulator.
 
-    python student.py --rounds 4 --maps 300 --updates 20000      # Linux / WSL with CUDA
-    python student.py --smoke                                    # a few minutes, checks the whole loop
+    python -m vision.student --rounds 4 --maps 300 --updates 20000      # Linux / WSL with CUDA
+    python -m vision.student --smoke                                    # a few minutes, checks the whole loop
 """
 import argparse
 import glob
@@ -26,9 +26,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from beatmap import CIRCLE, SPINNER, parse_osu
-from env import OsuEnv, k_from_obs
-from gpu_render import MAP_STRIDE, Scene, SceneTable, render_fast
-from render import PX, H, W
+from state.env import OsuEnv, k_from_obs
+from vision.gpu_render import MAP_STRIDE, Scene, SceneTable, render_fast
+from vision.render import PX, H, W
 
 HZ = 120
 DT = 1000 / HZ

@@ -6,8 +6,8 @@ import numpy as np
 from gymnasium.utils.env_checker import check_env
 
 from beatmap import SLIDER, SPINNER, parse_lines, parse_osu, random_osu
-from env import OsuEnv
-from play import oracle, run
+from state.env import OsuEnv
+from state.play import oracle, run
 from replay import write_osr
 
 MAP = "maps/bakenohana.osu"
@@ -45,7 +45,7 @@ raw = open(path, "rb").read()
 mode, version = struct.unpack_from("<bi", raw)
 assert (mode, version) == (0, 20240101) and raw[5] == 0x0B
 print(f"ok: oracle acc on {bm.title} = {acc:.2%}, {dict(counts)}, max combo {env.max_combo}")
-from env import k_from_obs
+from state.env import k_from_obs
 env_k5 = OsuEnv(k=5)
 assert env_k5.observation_space.shape == (50,)
 assert env_k5.k == 5

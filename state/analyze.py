@@ -1,6 +1,6 @@
 """Error analysis: where does a model lose judgements? Counts misses / 100s / 50s / slider breaks by situation.
 
-    python analyze.py results/<run>/best_model.zip maps/test/*.osu --hz 120
+    python -m state.analyze results/<run>/best_model.zip maps/test/*.osu --hz 120
 """
 import argparse
 import collections
@@ -9,9 +9,9 @@ import math
 from stable_baselines3 import PPO
 
 from beatmap import SLIDER, SPINNER, parse_osu
-from env import OsuEnv, k_from_obs
-from evaluate import model_policy
-from play import run
+from state.env import OsuEnv, k_from_obs
+from state.evaluate import model_policy
+from state.play import run
 
 
 def situation(bm, i):

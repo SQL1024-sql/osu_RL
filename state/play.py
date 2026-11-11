@@ -5,7 +5,7 @@ import numpy as np
 from stable_baselines3 import PPO
 
 from beatmap import SPINNER, parse_osu
-from env import OsuEnv, k_from_obs
+from state.env import OsuEnv, k_from_obs
 from replay import write_osr
 
 
