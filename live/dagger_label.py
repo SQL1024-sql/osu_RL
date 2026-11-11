@@ -42,8 +42,13 @@ def trajectory(rec, map_path):
         a, cols = d["log"], list(d["cols"])
         b = a[:, cols.index("buttons")].astype(int)
         ok = np.isfinite(a[:, cols.index("game")])
-        return (a[ok, cols.index("game")], a[ok][:, [cols.index("x"), cols.index("y")]],
-                np.stack([b[ok] & 1 != 0, b[ok] & 2 != 0], 1))
+        pos, b = a[ok][:, [cols.index("x"), cols.index("y")]], b[ok]
+        if "press" in d.files and str(d["press"]) == "first":
+            # the tablet pressed where the cursor was before the step's move (live.tablet.Tablet press="first")
+            down = np.nonzero(b[1:] & ~b[:-1])[0] + 1
+            pos = pos.copy()
+            pos[down] = pos[down - 1]
+        return a[ok, cols.index("game")], pos, np.stack([b & 1 != 0, b & 2 != 0], 1)
     fr = prepare(open(map_path, "rb").read(), level="expert")["frames"]  # what screen_play sent
     # the replay's extra frames (in-between updates, the previous step's keys) can share a step's ms: keep the
     # step's own frame, which comes first
@@ -95,7 +100,9 @@ def label(rec_path, index, teacher, k):
         cur.append(env.cursor.copy())
         act.append(a_t)
         held.append(np.array(env.keys, np.float32))
-        j = at(round(env.clock + env.dt))  # where the play was at the next step (the simulator rounds its clock to ms)
+        # where the play was at the next step. Not at the simulator's rounded ms: a vision_play row 0.1 ms after it
+        # (rows come every 8.33 ms, at any phase) would be skipped, and with it often the step a key went down
+        j = at(env.clock + env.dt)
         move = np.clip((gc[j] - env.cursor) / speed, -1, 1)
         obs, _, done, _, _ = env.step(np.array([*move, *np.where(gk[j], 1.0, -1.0)], np.float32))
     acc = env.lazer_accuracy()

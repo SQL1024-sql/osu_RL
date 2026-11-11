@@ -53,8 +53,23 @@ def control_path():
     sys.exit("VMulti control device not found. Install https://github.com/X9VoiD/vmulti-bin/releases/latest")
 
 
+def window_exe(hwnd):
+    """Full path of the program that owns a window ("" if it cannot be read)."""
+    pid = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(pid))
+    h = k32.OpenProcess(0x1000, False, pid.value)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return ""
+    try:
+        buf, n = ctypes.create_unicode_buffer(1024), wintypes.DWORD(1024)
+        return buf.value if k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(n)) else ""
+    finally:
+        k32.CloseHandle(h)
+
+
 def lazer_window():
-    """The visible window whose title starts with "osu!" (lazer adds the map's name while playing)."""
+    """The visible window whose title starts with "osu!" (lazer adds the map's name while playing); our fork's
+    (../ppy-osu, live.bridge) when both it and the installed lazer are open."""
     found = []
 
     @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
@@ -68,7 +83,11 @@ def lazer_window():
     user32.EnumWindows(visit, None)
     if not found:
         raise SystemExit("no lazer window (title starting with osu!)")
+    found.sort(key=lambda h: "ppy-osu" not in window_exe(h).replace("\\", "/"))
     return ctypes.c_void_p(found[0])
+
+
+PRESS_GAP = 0.003  # s between the two reports of a step where a key goes down (lazer handles input every ~1.5 ms)
 
 
 class LostFocus(RuntimeError):
@@ -80,7 +99,14 @@ class Tablet:
     window is in front, so every send first checks that lazer is; otherwise it lets go of the buttons and raises
     LostFocus instead of moving or clicking anything else."""
 
-    def __init__(self):
+    def __init__(self, press="after"):
+        """press: on a step where a key goes down, "first": press where the cursor is, then move (PRESS_GAP later);
+        "after": move, then press; "same": one report. In one report lazer takes the press before the move about half
+        the time (fork record, 2026-11-12), so only "first" and "after" are what the simulator can replay exactly; the
+        vision student clicks as its cursor starts to leave, and "first" scores 6-9 points more (live.dagger_label)."""
+        assert press in ("first", "after", "same")
+        self.press = press
+        self.at = None  # where the last report put the cursor
         self.h = wintypes.HANDLE(control_path())
         self.window = lazer_window().value
         user32.GetForegroundWindow.restype = ctypes.c_void_p
@@ -93,6 +119,14 @@ class Tablet:
         if user32.GetForegroundWindow() != self.window:
             self.release()
             raise LostFocus("osu! is not the window in front; stopped")
+        if buttons is not None and buttons & ~self.buttons and self.press != "same" and self.at is not None:
+            if self.press == "first":
+                self._write(*self.at, buttons)
+            else:
+                self._write(x, y)
+            due = time.perf_counter() + PRESS_GAP
+            while time.perf_counter() < due:
+                pass
         self._write(x, y, buttons)
 
     def release(self):
@@ -101,6 +135,7 @@ class Tablet:
     def _write(self, x, y, buttons=None):
         if buttons is not None:
             self.buttons = buttons
+        self.at = (x, y)
         nx = round((x - self.left) * 32767 / (self.width - 1))
         ny = round((y - self.top) * 32767 / (self.height - 1))
         nx, ny = min(max(nx, 0), 32767), min(max(ny, 0), 32767)

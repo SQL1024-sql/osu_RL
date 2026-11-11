@@ -44,6 +44,9 @@ MAP_KEYS = False  # --map-keys: click / hold labels from the map (object starts,
 TEACHER_CLICKS = False  # --teacher-clicks: click labels from the teacher's own key transitions (see Tracks.labels)
 CLICK_TH = 0.0  # click logit a peak must reach to fire a click
 CLICK_GAP = 0  # steps a click must wait after the last one (a logit that dips below the threshold and back fires twice)
+# steps after a click that its key stays held whatever the hold logit says (Exp 031): the hold logit only rises once
+# the frames show the slider started, a few steps after its head was clicked, and a key let go is never pressed again
+MIN_HOLD = 0
 AUX = 3  # cursor x, y, latency (the last move or held keys as inputs get copied: the student keeps doing what it did)
 
 _scenes = {}
@@ -412,7 +415,8 @@ def rollouts(jobs, student, drive, procs, maps):
                     last_fire[jid] = steps[jid]
                 fired[jid] = (fired[jid] or fire) and c > CLICK_TH
                 prev[jid] = c
-                actions[n, 2:], last[jid], clicked[jid] = keys_for(fire, h > 0, batch[n][6], last[jid], clicked[jid])
+                hold = h > 0 or steps[jid] - last_fire[jid] <= MIN_HOLD
+                actions[n, 2:], last[jid], clicked[jid] = keys_for(fire, hold, batch[n][6], last[jid], clicked[jid])
         for w in active:
             conns[w].send({s: actions[n] for n, (ww, s, *_) in enumerate(batch) if ww == w})
     for p in workers:

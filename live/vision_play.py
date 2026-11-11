@@ -34,6 +34,7 @@ from vision.render import H, PX, W, X0, Y0
 
 CKPT = "results/experiments/030-real-dagger-mapkeys/seed0/best.pt"
 CLICK_TH = -0.75  # the real-frame students click with lower logits (live.vision_eval --click-th sweep: 030 clicks 94% of objects, no stray)
+MIN_HOLD = 5  # Exp 031: steps a clicked key stays held (student.MIN_HOLD); 030 sim val 74.8% -> 77.7%, live log re-keyed 63.1% -> 70.0%
 
 
 def user32_metrics():
@@ -72,6 +73,15 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--ckpt", default=CKPT)
     p.add_argument("--click-th", type=float, default=CLICK_TH)
+    p.add_argument("--min-hold", type=int, default=MIN_HOLD,
+                   help="steps a clicked key stays held before the hold logit decides (Exp 031; 0: as before)")
+    p.add_argument("--clock", choices=["tosu", "bridge"], default="tosu",
+                   help="where the game clock comes from: tosu (installed lazer) or our fork's bridge (live.bridge)")
+    p.add_argument("--map", help="--clock bridge: start this .osu in the fork once the student is ready")
+    p.add_argument("--mods", nargs="*", default=["NF"], help="--map: mods to play it with")
+    p.add_argument("--press", choices=["first", "after", "same"], default="first",
+                   help="a step where a key goes down: press where the cursor was, then move (first), the other way round"
+                        " (after), or one report (same: lazer picks either way); live.tablet.Tablet")
     p.add_argument("--dry-run", action="store_true", help="decide but send no input")
     p.add_argument("--record", action="store_true",
                    help="also save every captured frame as a live.record recording (for live.dagger_label)")
@@ -84,13 +94,18 @@ def main():
     args = p.parse_args()
     if args.bench:
         args.dry_run = True
-    S.CLICK_TH = args.click_th
+    S.CLICK_TH, S.MIN_HOLD = args.click_th, args.min_hold
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = S.Student().to(dev).to(memory_format=torch.channels_last)
     model.load_state_dict(torch.load(args.ckpt, map_location=dev))
     model.eval()
-    clock = TosuClock()  # any map: the student only needs to know a map is being played
-    clock.start()
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    if args.clock == "bridge":
+        from live.bridge import BridgeClock
+        clock = BridgeClock()  # the fork's own gameplay clock, judgements and cursor record
+    else:
+        clock = TosuClock()  # any map: the student only needs to know a map is being played
+        clock.start()
     if not args.bench:
         wait_front("lazer")
     field = Playfield()
@@ -111,7 +126,7 @@ def main():
         # between maps: the raw capture, but only while lazer is in front (the desktop never goes out on stream)
         view = View(args.view, hud=not args.view_raw, idle=lambda: cap.ring[-1][1] if field.in_front() else None)
         print(f"student's view for OBS: {view.url}", flush=True)
-    tablet = None if args.dry_run else Tablet()
+    tablet = None if args.dry_run else Tablet(args.press)
     user32 = ctypes.WinDLL("user32")
     pt = (ctypes.c_long * 2)()
 
@@ -122,8 +137,13 @@ def main():
     # warm up the model (first CUDA calls are slow)
     with torch.no_grad(), S.autocast(dev):
         model(torch.zeros(1, S.N_FRAMES, H, W, device=dev), torch.zeros(1, S.AUX, device=dev))
-    print(f"{'dry run' if args.dry_run else 'playing'}: {args.ckpt}, click threshold {args.click_th}; "
+    print(f"{'dry run' if args.dry_run else 'playing'}: {args.ckpt}, click threshold {args.click_th}, min hold {args.min_hold}; "
           f"start a map in lazer (Ctrl+C stops)", flush=True)
+    lazer_out = None
+    if args.map:
+        assert args.clock == "bridge", "--map needs --clock bridge"
+        lazer_out = os.path.join("runs", "live_play", stamp + ("-dry" if args.dry_run else "") + "-lazer.json")
+        print(f"starting {args.map} with {' '.join(args.mods) or 'no mods'}: {clock.play(args.map, args.mods, lazer_out)}", flush=True)
 
     dt = S.DT / 1000
     log, live = [], False
@@ -180,7 +200,7 @@ def main():
                 last_fire = step
             fired = (fired or fire) and c > S.CLICK_TH
             prev = c
-            act, last, clicked = S.keys_for(fire, h > 0, held, last, clicked)
+            act, last, clicked = S.keys_for(fire, h > 0 or step - last_fire <= S.MIN_HOLD, held, last, clicked)
             held = act > 0
             buttons = (M1 if held[0] else 0) | (M2 if held[1] else 0)
             if not args.dry_run:
@@ -222,8 +242,17 @@ def main():
     cols = "wall game x y mx my click hold fire buttons lat newest".split()
     arr = np.array(log, dtype=np.float64)
     os.makedirs(os.path.join("runs", "live_play"), exist_ok=True)
-    out = os.path.join("runs", "live_play", time.strftime("%Y%m%d-%H%M%S") + ("-dry" if args.dry_run else "") + ".npz")
-    np.savez_compressed(out, log=arr, cols=np.array(cols), md5=str(clock.map_md5), ckpt=args.ckpt, click_th=args.click_th)
+    out = os.path.join("runs", "live_play", stamp + ("-dry" if args.dry_run else "") + ".npz")
+    extra = {}
+    if args.clock == "bridge":
+        clock.done_event.wait(15)  # the fork writes its record of the play when the results come up
+        if clock.done:
+            d = clock.done
+            print(f"lazer: accuracy {d['accuracy']:.2%}, {d['statistics']}" + (f" -> {d['file']}" if d.get("file") else ""), flush=True)
+            if d.get("file"):
+                extra["lazer"] = d["file"]
+    np.savez_compressed(out, log=arr, cols=np.array(cols), md5=str(clock.map_md5), ckpt=args.ckpt, click_th=args.click_th,
+                        min_hold=args.min_hold, clock=args.clock, press=args.press, **extra)
     if args.record and cap.keep_all:
         # capture times -> game times with the clock the steps used (wall - game, robust over the play)
         ok = np.isfinite(arr[:, 1])
