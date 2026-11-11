@@ -22,7 +22,7 @@ import time
 import cv2
 import numpy as np
 
-from render import H, PX, W, X0, Y0
+from vision.render import H, PX, W, X0, Y0
 
 PAGE = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "vision_view.html"), "rb").read()
 

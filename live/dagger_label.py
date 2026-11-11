@@ -18,8 +18,8 @@ import os
 import numpy as np
 import torch
 
-import student as S
-from env import MAX_CURSOR_SPEED, OsuEnv, k_from_obs
+import vision.student as S
+from state.env import MAX_CURSOR_SPEED, OsuEnv, k_from_obs
 from live.prepare import prepare
 
 

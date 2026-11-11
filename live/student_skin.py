@@ -17,7 +17,7 @@ import zipfile
 import cv2
 import numpy as np
 
-from render import APPROACH, APPROACH_W, BODY, BORDER, FILL, NUMBER, RIM, RIM_W
+from vision.render import APPROACH, APPROACH_W, BODY, BORDER, FILL, NUMBER, RIM, RIM_W
 
 R = 128  # @2x pixels of a hit circle's radius (legacy skins: 128 px = the diameter at @1x)
 SS = 4  # supersampling for smooth edges

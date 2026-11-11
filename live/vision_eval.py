@@ -21,11 +21,11 @@ import cv2
 import numpy as np
 import torch
 
-import student as S
-from env import MAX_CURSOR_SPEED
-from gpu_render import draw_dots
+import vision.student as S
+from state.env import MAX_CURSOR_SPEED
+from vision.gpu_render import draw_dots
 from live.prepare import prepare
-from render import H, W
+from vision.render import H, W
 
 LAT = 10.0  # ms the student is told its newest frame is old (training draws 0-30)
 

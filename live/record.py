@@ -21,7 +21,7 @@ import numpy as np
 from beatmap import parse_osu
 from live.screen_play import Playfield, wait_front
 from live.tosu_clock import TosuClock
-from render import H, PX, W, X0, Y0
+from vision.render import H, PX, W, X0, Y0
 
 
 def main():

@@ -24,13 +24,13 @@ import mss
 import numpy as np
 import torch
 
-import student as S
-from env import CURSOR_MARGIN, CURSOR_MAX, MAX_CURSOR_SPEED
-from gpu_render import draw_dots
+import vision.student as S
+from state.env import CURSOR_MARGIN, CURSOR_MAX, MAX_CURSOR_SPEED
+from vision.gpu_render import draw_dots
 from live.screen_play import Playfield, wait_front
 from live.tablet import M1, M2, LostFocus, Tablet
 from live.tosu_clock import TosuClock
-from render import H, PX, W, X0, Y0
+from vision.render import H, PX, W, X0, Y0
 
 CKPT = "results/experiments/030-real-dagger-mapkeys/seed0/best.pt"
 CLICK_TH = -0.75  # the real-frame students click with lower logits (live.vision_eval --click-th sweep: 030 clicks 94% of objects, no stray)

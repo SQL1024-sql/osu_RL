@@ -21,10 +21,10 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-import student as S
-from gpu_render import draw_dots
+import vision.student as S
+from vision.gpu_render import draw_dots
 from live.dagger_label import MAP_GLOBS, load_labels, map_index
-from render import H, W
+from vision.render import H, W
 
 class RealTracks:
     """Recordings on the GPU, sampled like student.Tracks: random steps of the teacher's play, the 4 frames the screen
