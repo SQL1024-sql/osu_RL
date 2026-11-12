@@ -67,9 +67,18 @@ def window_exe(hwnd):
         k32.CloseHandle(h)
 
 
+def is_fork(exe):
+    """True if this program path is our fork (live.bridge.EXE: ../ppy-osu, or fork/ from live.bundle), not the
+    installed lazer."""
+    import os
+    from live import bridge
+    exe = os.path.normcase(os.path.abspath(exe)) if exe else ""
+    return bool(exe) and (exe == os.path.normcase(os.path.abspath(bridge.EXE)) or "ppy-osu" in exe.replace("\\", "/"))
+
+
 def lazer_window():
     """The visible window whose title starts with "osu!" (lazer adds the map's name while playing); our fork's
-    (../ppy-osu, live.bridge) when both it and the installed lazer are open."""
+    (live.bridge.EXE) when both it and the installed lazer are open."""
     found = []
 
     @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
@@ -83,7 +92,7 @@ def lazer_window():
     user32.EnumWindows(visit, None)
     if not found:
         raise SystemExit("no lazer window (title starting with osu!)")
-    found.sort(key=lambda h: "ppy-osu" not in window_exe(h).replace("\\", "/"))
+    found.sort(key=lambda h: not is_fork(window_exe(h)))
     return ctypes.c_void_p(found[0])
 
 

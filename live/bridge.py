@@ -27,7 +27,11 @@ from collections import deque
 import numpy as np
 
 PORT = 24051
-EXE = os.path.join("..", "ppy-osu", "osu.Desktop", "bin", "Release", "net10.0", "osu!.exe")
+# the fork: OSU_RL_FORK_EXE, else a build next to this repo (../ppy-osu), else the copy live.bundle puts in fork/
+EXE_CANDIDATES = [os.environ.get("OSU_RL_FORK_EXE", ""),
+                  os.path.join("..", "ppy-osu", "osu.Desktop", "bin", "Release", "net10.0", "osu!.exe"),
+                  os.path.join("fork", "osu!.exe")]
+EXE = next((p for p in EXE_CANDIDATES if p and os.path.exists(p)), EXE_CANDIDATES[1])
 DATA = os.path.join(os.environ.get("APPDATA", ""), "osu-rl")
 LIVE_SET = "runs/maps/live_set"
 SKIN = "runs/skin/Neuro-sama number 1 (AI) (osu_rl student).osk"
@@ -171,6 +175,29 @@ class BridgeClock(threading.Thread):
         self.state = None
 
 
+def ini_defaults(path, values):
+    """Sets these keys in a lazer .ini (key = value lines), adding the file or the keys if missing."""
+    lines = open(path, encoding="utf-8").read().splitlines() if os.path.exists(path) else []
+    keys = {l.split("=", 1)[0].strip(): i for i, l in enumerate(lines) if "=" in l}
+    for k, v in values.items():
+        if k in keys:
+            lines[keys[k]] = f"{k} = {v}"
+        else:
+            lines.append(f"{k} = {v}")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def import_skin(clock):
+    """Imports the student skin (lazer deletes what it imports: it gets a copy). -> the game's reply"""
+    tmp = tempfile.mkdtemp(prefix="osu_rl_import_")
+    osk = os.path.join(tmp, os.path.basename(SKIN))
+    shutil.copy(SKIN, osk)
+    r = clock.call(cmd="import", paths=[osk], timeout=300)
+    time.sleep(2)
+    return r
+
+
 def launch(port=PORT):
     """Start the fork with its bridge on, copying the installed lazer's settings into its data folder the first time."""
     if not os.path.exists(EXE):
@@ -181,6 +208,10 @@ def launch(port=PORT):
         if not os.path.exists(os.path.join(DATA, f)) and os.path.exists(os.path.join(src, f)):
             with open(os.path.join(src, f), "rb") as a, open(os.path.join(DATA, f), "wb") as b:
                 b.write(a.read())
+    # a machine that never ran lazer: no first-run wizard (nobody is there to click through it), and a borderless
+    # window that does not minimize itself when something else is clicked
+    ini_defaults(os.path.join(DATA, "game.ini"), {"ShowFirstRunSetup": "False"})
+    ini_defaults(os.path.join(DATA, "framework.ini"), {"WindowMode": "Borderless", "MinimiseOnFocusLossInFullscreen": "False"})
     env = dict(os.environ, OSU_RL_BRIDGE=str(port))
     subprocess.Popen([os.path.abspath(EXE)], cwd=os.path.dirname(os.path.abspath(EXE)), env=env,
                      creationflags=getattr(subprocess, "DETACHED_PROCESS", 0))

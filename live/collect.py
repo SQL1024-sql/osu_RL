@@ -24,6 +24,7 @@ import ctypes
 import glob
 import json
 import os
+import re
 import random
 import tempfile
 import time
@@ -33,8 +34,8 @@ import zipfile
 import numpy as np
 
 import vision.student as S
-from live.bridge import BridgeClock, launch, md5_of
-from live.tablet import lazer_window, window_exe
+from live.bridge import SKIN_NAME, BridgeClock, import_skin, launch, md5_of
+from live.tablet import is_fork, lazer_window, window_exe
 from live.vision_play import CKPT, CLICK_TH, MIN_HOLD, VisionPlayer
 
 ES_CONTINUOUS, ES_SYSTEM_REQUIRED, ES_DISPLAY_REQUIRED = 0x80000000, 0x1, 0x2
@@ -69,12 +70,12 @@ def private_mb(pid=None):
 
 def fork_pid():
     """The fork's process id, or None: never the installed lazer's (its window is only taken if its program lives
-    under ppy-osu)."""
+    is live.bridge.EXE)."""
     try:
         h = lazer_window()
     except SystemExit:
         return None
-    if "ppy-osu" not in window_exe(h.value).replace("\\", "/"):
+    if not is_fork(window_exe(h.value)):
         return None
     pid = ctypes.c_ulong()
     ctypes.windll.user32.GetWindowThreadProcessId(h, ctypes.byref(pid))
@@ -86,6 +87,17 @@ def keep_awake(on=True):
     ctypes.windll.kernel32.SetThreadExecutionState(flags)
 
 
+def map_title(path):
+    """The song and difficulty of one of our .osu files ("pool train - Title Version (id)" -> "Title Version")."""
+    try:
+        with open(path, encoding="utf-8-sig", errors="replace") as f:
+            ver = next((l[8:].strip() for l in f if l.startswith("Version:")), "")
+    except OSError:
+        ver = ""
+    ver = ver.split(" - ", 1)[-1]
+    return re.sub(r"\s*\(\d+\)$", "", ver) or os.path.basename(path)[:-4]
+
+
 class Session:
     def __init__(self, args):
         self.args = args
@@ -95,7 +107,9 @@ class Session:
         self.plays, self.clock = [], None
         self.bytes = 0  # written into the session folder so far
         self.recording = args.record
-        self.player = VisionPlayer(args.ckpt, args.click_th, args.min_hold, args.press, background=args.background)
+        self.player = VisionPlayer(args.ckpt, args.click_th, args.min_hold, args.press, view=getattr(args, "view", None),
+                                   background=args.background)
+        self.overlay_head = lambda: []  # -> first lines of the overlay text (live.improve: the round, what it does)
         self.say(f"session {self.dir}: model {args.ckpt}, click threshold {args.click_th}, min hold {args.min_hold}, press {args.press}")
 
     def say(self, text):
@@ -113,6 +127,23 @@ class Session:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(s, f, indent=1)
         os.replace(tmp, os.path.join(self.dir, "status.json"))
+        if getattr(self.args, "overlay", None):
+            self.write_overlay(state, more.get("map"), accs)
+
+    def write_overlay(self, state, map_path, accs):
+        """A few lines for the stream (OBS: Text source, "Read from file"), rewritten whenever the state changes."""
+        lines = list(self.overlay_head())
+        if state == "playing" and map_path:
+            lines.append(f"正在打：{map_title(map_path)}")
+        elif state == "waiting":
+            lines.append("暫停中（遊戲視窗被縮小了）")
+        if accs:
+            lines.append(f"上一首：{accs[-1]:.2%}")
+            lines.append(f"最近 {min(10, len(accs))} 首平均：{np.mean(accs[-10:]):.2%}")
+        tmp = self.args.overlay + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        os.replace(tmp, self.args.overlay)
 
     # ------------------------------------------------------------- the game
     def connect(self):
@@ -127,8 +158,17 @@ class Session:
             self.clock = BridgeClock(connect_timeout=180)
             time.sleep(10)  # the intro
         self.say(f"connected to the fork: {self.clock.call(cmd='status')}")
-        if self.args.background:  # a borderless window stays up (fullscreen minimizes) behind other windows
-            self.clock.call(cmd="setup", window="borderless", hud=False)
+        # the student's skin, no HUD, a borderless window (stays up behind other windows; fullscreen minimizes); in the
+        # background nobody is at the mouse, so no menu cursor follows it on the stream
+        setup = dict(cmd="setup", skin=SKIN_NAME, window="borderless", hud=False)
+        if self.args.background:
+            setup["cursor"] = False
+        r = self.clock.call(**setup)
+        if not r.get("ok") and "no skin" in str(r.get("error")):  # a fresh data folder: import it once
+            self.say(f"importing the student skin: {import_skin(self.clock)}")
+            r = self.clock.call(**setup)
+        if not r.get("ok"):
+            self.say(f"setup failed: {r}")
 
     @staticmethod
     def in_front():

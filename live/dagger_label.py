@@ -23,7 +23,7 @@ from state.env import MAX_CURSOR_SPEED, OsuEnv, k_from_obs
 from live.prepare import prepare
 
 
-MAP_GLOBS = ["maps/test/*.osu", "runs/maps/live_set/*.osu"]
+MAP_GLOBS = ["maps/test/*.osu", "runs/maps/live_set/*.osu", "runs/maps/pool/*/*.osu"]
 
 
 def map_index(globs):
