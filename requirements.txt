@@ -5,3 +5,5 @@ matplotlib
 pandas
 aiohttp
 opencv-python-headless
+mss
+windows-capture; sys_platform == "win32"

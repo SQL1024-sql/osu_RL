@@ -38,6 +38,37 @@ def md5_of(path):
     return hashlib.md5(open(path, "rb").read()).hexdigest()
 
 
+class BridgeInput:
+    """Tablet's interface (send, release, close) over the bridge instead of VMulti: positions in osu! px, and the play
+    goes on with the window in the background. press="first": on a step where a key goes down, the press is sent where
+    the cursor was and the move after it (live.tablet.Tablet press="first"); the game applies them in that order."""
+
+    def __init__(self, clock, press="first"):
+        assert press in ("first", "after")
+        self.clock, self.press, self.buttons, self.at = clock, press, 0, None
+
+    def send(self, x, y, buttons=None):
+        b = self.buttons if buttons is None else buttons
+        if b & ~self.buttons and self.at is not None:
+            if self.press == "first":
+                self.clock.send_input(*self.at, b)
+            else:
+                self.clock.send_input(x, y, self.buttons)
+        self.clock.send_input(x, y, b)
+        self.buttons, self.at = b, (x, y)
+
+    def release(self):
+        if self.at is not None and self.buttons:
+            try:
+                self.clock.send_input(*self.at, 0)
+            except OSError:
+                pass
+        self.buttons = 0
+
+    def close(self):
+        self.release()
+
+
 class BridgeClock(threading.Thread):
     """The connection to the game. call() sends a command and waits for its reply; events update state, the clock
     model (wall = icept + game_s, from the last samples) and, when a play ends, done (its summary) and done_event."""
@@ -60,6 +91,7 @@ class BridgeClock(threading.Thread):
         self.ids = itertools.count(1)
         self.replies, self.reply_ready = {}, threading.Condition()
         self.state, self.map_md5, self.done, self.error = None, None, None, None
+        self.expect_out = None
         self.done_event = threading.Event()
         self.samples = deque(maxlen=64)  # (qpc s, gameplay ms)
         self.judgements = []
@@ -77,6 +109,11 @@ class BridgeClock(threading.Thread):
     def playing(self):
         return self.state == "playing"
 
+    @property
+    def connected(self):
+        """False once the game closed the connection (it quit or crashed)."""
+        return self.is_alive()
+
     def call(self, timeout=60, **cmd):
         cmd["id"] = i = next(self.ids)
         with self.lock:
@@ -86,13 +123,26 @@ class BridgeClock(threading.Thread):
                 raise TimeoutError(f"no reply to {cmd['cmd']} in {timeout} s")
             return self.replies.pop(i)
 
-    def play(self, osu_path, mods=("NF",), out=None):
+    def send_input(self, x, y, buttons):
+        """Gameplay input for a play started with input="bridge": the cursor at (x, y) osu! px, buttons held (bit 0: M1,
+        bit 1: M2). No reply; the game applies them in the order sent."""
+        line = '{"cmd":"input","x":%.2f,"y":%.2f,"b":%d}\n' % (x, y, buttons)
+        with self.lock:
+            self.sock.sendall(line.encode())
+
+    def play(self, osu_path, mods=("NF",), out=None, input=None):
         """Start a map; returns once the game took the command (the play itself starts after loading)."""
         self.map_md5 = md5_of(osu_path)
         self.done, self.judgements = None, []
         self.done_event.clear()
         self.samples.clear()
-        r = self.call(cmd="play", md5=self.map_md5, mods=list(mods), out=os.path.abspath(out) if out else None)
+        # a play the game was still in (abandoned when this one starts) reports its end after this command: only the
+        # end of the play writing to this out counts
+        self.expect_out = os.path.normcase(os.path.abspath(out)) if out else None
+        cmd = dict(cmd="play", md5=self.map_md5, mods=list(mods), out=os.path.abspath(out) if out else None)
+        if input:
+            cmd["input"] = input
+        r = self.call(**cmd)
         if not r.get("ok"):
             raise RuntimeError(f"play {osu_path}: {r.get('error')}")
         return r
@@ -112,6 +162,8 @@ class BridgeClock(threading.Thread):
             elif ev == "judge":
                 self.judgements.append(m)
             elif ev == "done":
+                if self.expect_out and os.path.normcase(m.get("file") or "") != self.expect_out:
+                    continue  # the end of an earlier play
                 self.state, self.done = "done", m
                 self.done_event.set()
             elif ev == "error":
