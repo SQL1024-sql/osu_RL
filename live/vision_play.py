@@ -125,7 +125,7 @@ class VisionPlayer:
     and starts capturing it; play() plays one map, from when the clock says it started to when it says it ended."""
 
     def __init__(self, ckpt=CKPT, click_th=CLICK_TH, min_hold=MIN_HOLD, press="first", dry_run=False, view=None,
-                 view_raw=False, background=False):
+                 view_raw=False, background=False, view_style="input"):
         """background: our fork only. The window is captured even while covered (WindowCapture) and the input goes
         over the bridge (live.bridge.BridgeInput) instead of the virtual tablet, so nothing needs the game in front."""
         S.CLICK_TH, S.MIN_HOLD = click_th, min_hold
@@ -138,7 +138,7 @@ class VisionPlayer:
         self.model.eval()
         with torch.no_grad(), S.autocast(self.dev):  # warm up (the first CUDA calls are slow)
             self.model(torch.zeros(1, S.N_FRAMES, H, W, device=self.dev), torch.zeros(1, S.AUX, device=self.dev))
-        self.view_port, self.view_raw, self.view = view, view_raw, None
+        self.view_port, self.view_raw, self.view, self.view_style = view, view_raw, None, view_style
         self.field = self.cap = self.tablet = self.box = None
         self._pt = (ctypes.c_long * 2)()
 
@@ -175,7 +175,7 @@ class VisionPlayer:
         if self.view_port and self.view is None:
             from live.vision_view import View
             # between maps: the raw capture, but only while lazer is in front (the desktop never goes out on stream)
-            self.view = View(self.view_port, hud=not self.view_raw,
+            self.view = View(self.view_port, hud=not self.view_raw, style=self.view_style,
                              idle=lambda: self.cap.ring[-1][1] if self.field.in_front() else None)
             print(f"student's view for OBS: {self.view.url}", flush=True)
         if not self.dry_run and not self.background:  # background: the bridge input is made per play (it needs the clock)
@@ -271,9 +271,9 @@ class VisionPlayer:
                         elif not on_lost_focus():
                             break
                     hist.append((time.perf_counter(), cur.copy()))
-                if self.view and self.view.want():  # the newest input frame, copied only as often as it is shown
-                    self.view.put(img[0, 0].mul(255).byte().cpu().numpy(), cur, m, held, fire)
                 game = (now - clock.model[0]) * 1000 if clock is not None and clock.model is not None else np.nan
+                if self.view and self.view.want():  # the newest input frame, copied only as often as it is shown
+                    self.view.put(img[0, 0].mul(255).byte().cpu().numpy(), cur, m, held, fire, game)
                 log.append((now, game, *cur, *m, c, h, fire, buttons, lat_ms, newest))
                 step += 1
                 nxt += dt

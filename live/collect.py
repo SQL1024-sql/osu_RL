@@ -108,6 +108,7 @@ class Session:
         self.bytes = 0  # written into the session folder so far
         self.recording = args.record
         self.player = VisionPlayer(args.ckpt, args.click_th, args.min_hold, args.press, view=getattr(args, "view", None),
+                                   view_style=getattr(args, "view_style", "input"),
                                    background=args.background)
         self.overlay_head = lambda: []  # -> first lines of the overlay text (live.improve: the round, what it does)
         self.say(f"session {self.dir}: model {args.ckpt}, click threshold {args.click_th}, min hold {args.min_hold}, press {args.press}")
@@ -218,6 +219,8 @@ class Session:
             row["error"] = "the fork could not be brought in front"
             return row
         self.player.attach(wait=False)
+        if self.player.view is not None:
+            self.player.view.set_map(path)  # the "neuro" view draws the map itself
         time.sleep(0.5)
         fps = self.player.cap.fps()
         for _ in range(3):  # just after the game started or the capture restarted it can be briefly slow

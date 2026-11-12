@@ -49,7 +49,8 @@ def gpu():
     if gb >= 14:
         say(OK, f"GPU {p.name}，{gb:.1f} GB")
     elif gb >= 8:
-        say(WARN, f"GPU {p.name}，{gb:.1f} GB：可以打歌，訓練要把 live.improve 的 --max-recs 調小（16 GB 用 24）")
+        say(WARN, f"GPU {p.name}，{gb:.1f} GB：打歌沒問題（用 live.stream，訓練放在別台）；"
+                  "要在這台訓練，live.improve 的 --max-recs 要調小（16 GB 用 24）")
     else:
         say(BAD, f"GPU {p.name}，只有 {gb:.1f} GB", "打歌勉強，訓練跑不動")
 

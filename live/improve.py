@@ -12,8 +12,8 @@ Each round, in runs/improve/:
    recordings (at most --max-recs, all of them on the GPU), held-out loss on the validation recording;
 4. gate: the current model and the candidate play the gate maps in turn, --gate times each; the candidate replaces
    the current model only if its mean accuracy is higher by --margin points or more.
-While the candidate trains, the current model keeps playing (and recording) training maps, so the game never stands still;
---pause-while-training stops it to give training the whole GPU. state.json says which model plays now;
+While the candidate trains the game stands still (training takes the whole GPU); --play-while-training keeps the
+current model playing meanwhile, which needs a second GPU. state.json says which model plays now;
 rounds.jsonl has one line per round. Restarting picks up from state.json.
 """
 import argparse
@@ -46,6 +46,14 @@ def maps_of(globs):
     return sorted({f for g in globs for f in glob.glob(g)})
 
 
+def step_hz(log_path):
+    """How many decisions a second the student made in a play (its vision_play log; 120 when nothing slowed it)."""
+    z = np.load(log_path)
+    wall = z["log"][:, list(z["cols"]).index("wall")]
+    # steps over the whole play (as live.collect's step_hz): a slowed student mostly stalls, its median step looks fine
+    return (len(wall) - 1) / float(wall[-1] - wall[0]) if len(wall) > 1 and wall[-1] > wall[0] else 0.0
+
+
 def fork_minimized():
     """True if the fork is running with its window minimized."""
     try:
@@ -70,7 +78,7 @@ class Improver:
         sargs = argparse.Namespace(maps=TRAIN_MAPS, shuffle=True, hours=0, plays=0, mods=["NF"], ckpt=self.state["current"],
                                    click_th=a.click_th, min_hold=a.min_hold, press="first", record=True, min_fps=50,
                                    max_gb=0, restart_fork_mb=6000, out=os.path.join(a.out, "plays"),
-                                   background=not a.foreground, view=a.view or None,
+                                   background=not a.foreground, view=a.view or None, view_style=a.view_style,
                                    overlay=os.path.join(a.out, "overlay.txt"))
         self.session = Session(sargs)
         self.phase = "start"
@@ -147,12 +155,14 @@ class Improver:
         """Labelled student recordings of training maps (never the gate maps), newest first."""
         recs = []
         for f in glob.glob("runs/live_play/*-rec.npz") + glob.glob(os.path.join(self.a.out, "plays", "*", "*-rec.npz")) + \
-                glob.glob("runs/collect/*/*-rec.npz"):
+                glob.glob("runs/collect/*/*-rec.npz") + glob.glob("runs/stream/plays/*/*-rec.npz"):
             if not os.path.exists(f[:-4] + ".labels.npz"):
                 continue
             try:
                 if str(np.load(f)["md5"]) in self.gate_md5:
                     continue
+                if step_hz(f[: -len("-rec.npz")] + ".npz") < 100:
+                    continue  # the student ran slow (the GPU shared with training): not how it plays
             except Exception:
                 continue
             recs.append(f)
@@ -233,8 +243,10 @@ class Improver:
                 # a different draw of the training maps every round (too many to play them all each round)
                 train = maps_of(TRAIN_MAPS)
                 rows = self.play_maps(random.sample(train, min(a.collect, len(train))) * (a.collect // len(train) + 1), a.collect)
-                # every recording of this loop still unlabelled, also those of a run that was stopped mid-round
-                recs = [r["rec"] for r in rows if r.get("rec")] + glob.glob(os.path.join(a.out, "plays", "*", "*-rec.npz"))
+                # every recording of this loop still unlabelled, also those of a run that was stopped mid-round, and
+                # those brought back from the stream machine (live.stream --record, copied into runs/stream/plays/)
+                recs = [r["rec"] for r in rows if r.get("rec")] + glob.glob(os.path.join(a.out, "plays", "*", "*-rec.npz")) \
+                    + glob.glob("runs/stream/plays/*/*-rec.npz")
                 self.set_phase("label")
                 self.label(sorted(set(recs)))
                 self.set_phase("retrain")
@@ -287,10 +299,14 @@ def main():
                    help="recordings per training run (all on the GPU: 32 filled the 16 GB card and ran 4x slower)")
     p.add_argument("--click-th", type=float, default=-0.75)
     p.add_argument("--min-hold", type=int, default=5)
-    p.add_argument("--pause-while-training", action="store_true",
-                   help="stop playing while the candidate trains (default: the current model keeps playing, sharing the GPU)")
+    p.add_argument("--play-while-training", dest="pause_while_training", action="store_false",
+                   help="keep playing while the candidate trains, sharing the GPU. On one 16 GB card (2026-11-12) the card "
+                        "filled up, the student ran at 61 Hz instead of 120 (89%% -> 53-60%%), training took 2.5x as "
+                        "long and the fork shut down: only with a second GPU or a much smaller training run")
     p.add_argument("--view", type=int, default=8770, metavar="PORT",
                    help="serve what the student sees for OBS (Browser source http://127.0.0.1:PORT/); 0: off")
+    p.add_argument("--view-style", choices=["neuro", "input"], default="neuro",
+                   help="neuro: the map drawn plain and blurred from the game state, like the AI view on Neuro-sama's osu! streams; input: the frames the model got, sharp, with its move / clicks / keys")
     p.add_argument("--foreground", action="store_true",
                    help="play through the virtual tablet with the fork in front (default: in the background)")
     p.add_argument("--out", default="runs/improve")

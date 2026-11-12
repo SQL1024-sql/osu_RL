@@ -54,6 +54,9 @@ class OBS:
 
 
 async def main(a):
+    global OVERLAY
+    if a.stream:  # live.stream (the stream machine only plays) writes its own overlay
+        OVERLAY = os.path.abspath("runs/stream/overlay.txt")
     if not os.path.exists(OVERLAY):  # the text source reads it; the loop rewrites it as it plays
         os.makedirs(os.path.dirname(OVERLAY), exist_ok=True)
         open(OVERLAY, "w", encoding="utf-8").write("osu_rl 準備中\n")
@@ -112,4 +115,5 @@ if __name__ == "__main__":
     p.add_argument("--port", type=int, default=4455)
     p.add_argument("--password")
     p.add_argument("--switch", action="store_true")
+    p.add_argument("--stream", action="store_true", help="the status text of live.stream instead of live.improve")
     asyncio.run(main(p.parse_args()))

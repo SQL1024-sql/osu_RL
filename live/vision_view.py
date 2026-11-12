@@ -22,6 +22,7 @@ import time
 import cv2
 import numpy as np
 
+from vision import render as R
 from vision.render import H, PX, W, X0, Y0
 
 PAGE = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "vision_view.html"), "rb").read()
@@ -33,11 +34,77 @@ KEY_OFF = (70, 70, 70)
 STALE = 0.25             # s without a decision -> show the raw capture
 
 
-class View:
-    """Serves the student's view as MJPEG. Call want() / put() from the play loop; everything else runs on its own threads."""
+class NeuroRenderer(R.Renderer):
+    """The map at a moment drawn plain, like the AI view in the corner of Neuro-sama's osu! streams: white solid circles,
+    thin grey approach circles, grey slider bodies, objects fading in as grey, the cursor a grey dot. It is drawn from
+    the game state (map, gameplay time, the student's cursor), not from the pixels the model got."""
 
-    def __init__(self, port=8770, scale=4, hud=True, fps=60, idle=None, host="127.0.0.1"):
+    CIRCLE, APPROACH, BODY, EDGE, CURSOR, SPIN = 1.0, 0.45, 0.3, 0.55, 0.5, 0.45
+
+    def hit_object(self, out, i, t):
+        bm, r = self.bm, self.r
+        start, end = bm.objects[i, 2], bm.ends[i]
+        appear = start - self.preempt
+        alpha = min(1.0, (t - appear) / self.fade)
+        if t > end:
+            alpha *= max(0.0, 1 - (t - end) / R.FADE_OUT)
+        head = R.px(bm.objects[i, :2]).astype(np.int32)
+        rad = int(r * PX * R.SUB * 0.9)
+        slider = bm.kinds[i] == R.SLIDER
+
+        def draw(layer, mask):
+            if slider:
+                path = self.paths[i]
+                n = max(2, int(len(path) * min(1.0, (t - appear) / (self.preempt / 3))))
+                body = np.zeros((H, W), np.float32)
+                cv2.polylines(body, [path[:n]], False, 1.0, max(1, round(1.8 * r * PX)), cv2.LINE_AA, 4)
+                layer[:] = np.maximum(layer, self.BODY * body)
+                mask[:] = np.maximum(mask, body)
+            c = head if t <= start or not slider else R.px(bm.sliders[i].ball(t)).astype(np.int32)
+            cv2.circle(layer, tuple(c), rad, self.CIRCLE, -1, cv2.LINE_AA, 4)
+            cv2.circle(mask, tuple(c), rad, 1.0, -1, cv2.LINE_AA, 4)
+            if t < start:
+                ar = int(rad * (1 + 2.5 * (start - t) / self.preempt))
+                cv2.circle(layer, tuple(head), ar, self.APPROACH, 1, cv2.LINE_AA, 4)
+                cv2.circle(mask, tuple(head), ar, 1.0, 1, cv2.LINE_AA, 4)
+
+        self.blend(out, max(0.0, alpha), draw)
+
+    def spinner(self, out, i, t):
+        s = self.bm.spinners[i]
+        alpha = min(1.0, max(0.0, (t - (s.start - 500)) / 500)) * (1 if t <= s.end else max(0.0, 1 - (t - s.end) / R.FADE_OUT))
+        c = tuple(R.px((256, 192)).astype(np.int32))
+
+        def draw(layer, mask):
+            cv2.circle(layer, c, int(150 * PX * R.SUB), self.SPIN, 2, cv2.LINE_AA, 4)
+            cv2.circle(mask, c, int(150 * PX * R.SUB), 1.0, 2, cv2.LINE_AA, 4)
+
+        self.blend(out, alpha, draw)
+
+    def view(self, t, cursor, size):
+        """(H, W) map frame at t ms with the cursor -> the blurred low-resolution look at size (w, h), uint8 grey."""
+        f = self.frame(t).astype(np.float32) / 255
+        c = tuple(R.px(cursor).astype(np.int32))
+        cur = np.zeros((H, W), np.float32)
+        cv2.circle(cur, c, int(self.r * PX * R.SUB * 0.45), 1.0, -1, cv2.LINE_AA, 4)
+        f = f * (1 - cur) + self.CURSOR * cur
+        low = cv2.resize(f, (W // 2, H // 2), interpolation=cv2.INTER_AREA)  # 80 x 60, Neuro's input size
+        big = cv2.resize(low, size, interpolation=cv2.INTER_CUBIC)
+        k = (size[0] // 50) | 1
+        big = cv2.GaussianBlur(big, (k, k), 0)
+        return (np.clip(big, 0, 1) * 255).astype(np.uint8)
+
+
+class View:
+    """Serves the student's view as MJPEG. Call want() / put() from the play loop; everything else runs on its own threads.
+    style "input": the frames the model got, sharp pixels, with a HUD of its move, clicks and keys; "neuro": the map drawn
+    plain and blurred from the game state (NeuroRenderer; set_map() before each map, put() with the gameplay time)."""
+
+    def __init__(self, port=8770, scale=4, hud=True, fps=60, idle=None, host="127.0.0.1", style="input"):
         self.scale, self.hud, self.dt = scale, hud, 1 / fps
+        self.style, self.neuro = style, None
+        if style == "neuro":
+            idle = None  # between maps: nothing (the page is transparent then)
         self.idle = idle            # () -> newest raw (H, W) uint8 frame, shown while the student is not deciding
         self.state, self.t_state, self.taken = None, 0.0, True
         self.last_fire = -1.0
@@ -100,12 +167,19 @@ class View:
         """True when the last decision has been drawn, so the play loop copies a frame only as often as it is shown."""
         return self.taken
 
-    def put(self, frame, cursor, move, held, fire):
-        """frame (H, W) uint8: the newest model input frame; cursor in osu! px; move in [-1, 1] (x max speed); held (2,) bool."""
+    def set_map(self, path):
+        """The map about to be played (style "neuro" draws it)."""
+        if self.style == "neuro":
+            from beatmap import parse_osu
+            self.neuro = NeuroRenderer(parse_osu(path))
+
+    def put(self, frame, cursor, move, held, fire, game_ms=None):
+        """frame (H, W) uint8: the newest model input frame; cursor in osu! px; move in [-1, 1] (x max speed); held (2,) bool;
+        game_ms: the gameplay time of this decision (style "neuro")."""
         now = time.perf_counter()
         if fire:
             self.last_fire = now
-        self.state = (frame, np.array(cursor, float), np.array(move, float), np.array(held, bool))
+        self.state = (frame, np.array(cursor, float), np.array(move, float), np.array(held, bool), game_ms)
         self.t_state, self.taken = now, False
 
     def _render(self):
@@ -114,7 +188,14 @@ class View:
             now = time.perf_counter()
             img = None
             if self.state is not None and now - self.t_state < STALE:
-                img = self.draw(*self.state, ring=now - self.last_fire < 0.12)
+                frame, cursor, move, held, game_ms = self.state
+                if self.style == "neuro":
+                    if self.neuro is not None and game_ms is not None and np.isfinite(game_ms):
+                        t = game_ms + (now - self.t_state) * 1000  # between decisions the map moves on smoothly
+                        grey = self.neuro.view(t, cursor, (W * self.scale, H * self.scale))
+                        img = cv2.cvtColor(grey, cv2.COLOR_GRAY2BGR)
+                else:
+                    img = self.draw(frame, cursor, move, held, ring=now - self.last_fire < 0.12)
                 self.taken = True
             elif self.idle is not None:
                 try:

@@ -175,6 +175,13 @@ class BridgeClock(threading.Thread):
         self.state = None
 
 
+GAMEPLAY_SETTINGS = {
+    "ShowFirstRunSetup": "False", "DimLevel": "1.0", "BlurLevel": "1.0", "LightenDuringBreaks": "False",
+    "ShowStoryboard": "False", "HitLighting": "False", "BeatmapSkins": "False", "BeatmapColours": "False",
+    "GameplayLeaderboard": "False", "ShowHealthDisplayWhenCantFail": "False", "StarFountains": "False",
+}
+
+
 def ini_defaults(path, values):
     """Sets these keys in a lazer .ini (key = value lines), adding the file or the keys if missing."""
     lines = open(path, encoding="utf-8").read().splitlines() if os.path.exists(path) else []
@@ -202,15 +209,19 @@ def launch(port=PORT):
     """Start the fork with its bridge on, copying the installed lazer's settings into its data folder the first time."""
     if not os.path.exists(EXE):
         raise SystemExit(f"{EXE} is missing: dotnet build ../ppy-osu/osu.Desktop -c Release")
-    src = os.path.join(os.environ["APPDATA"], "osu")
+    # settings to start from: the installed lazer's (OSU_RL_SETTINGS_FROM: another folder; one that does not exist: none)
+    src = os.environ.get("OSU_RL_SETTINGS_FROM") or os.path.join(os.environ["APPDATA"], "osu")
     os.makedirs(DATA, exist_ok=True)
     for f in ("framework.ini", "game.ini", "input.json"):
         if not os.path.exists(os.path.join(DATA, f)) and os.path.exists(os.path.join(src, f)):
             with open(os.path.join(src, f), "rb") as a, open(os.path.join(DATA, f), "wb") as b:
                 b.write(a.read())
-    # a machine that never ran lazer: no first-run wizard (nobody is there to click through it), and a borderless
-    # window that does not minimize itself when something else is clicked
-    ini_defaults(os.path.join(DATA, "game.ini"), {"ShowFirstRunSetup": "False"})
+    # set on every start, so a machine that never ran lazer gets them too: no first-run wizard (nobody is there to click
+    # through it), the screen the student learnt on (a fully dimmed, black background; no storyboard, hit lighting,
+    # beatmap skins or colours, leaderboard or health bar; not lightened in breaks), and a borderless window that does
+    # not minimize itself when something else is clicked. Missing them, a fresh install showed a grey background and the
+    # student did not click once (2026-11-13).
+    ini_defaults(os.path.join(DATA, "game.ini"), GAMEPLAY_SETTINGS)
     ini_defaults(os.path.join(DATA, "framework.ini"), {"WindowMode": "Borderless", "MinimiseOnFocusLossInFullscreen": "False"})
     env = dict(os.environ, OSU_RL_BRIDGE=str(port))
     subprocess.Popen([os.path.abspath(EXE)], cwd=os.path.dirname(os.path.abspath(EXE)), env=env,
