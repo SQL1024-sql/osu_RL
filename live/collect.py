@@ -25,6 +25,7 @@ import glob
 import json
 import os
 import re
+import sys
 import random
 import tempfile
 import time
@@ -347,6 +348,7 @@ class Session:
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # map names and messages may not be ASCII
     p = argparse.ArgumentParser()
     p.add_argument("--maps", nargs="*", default=["runs/maps/live_set/*.osu"], help=".osu files (globs) to play in turn")
     p.add_argument("--shuffle", action="store_true", help="a new random order every round")

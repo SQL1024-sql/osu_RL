@@ -453,6 +453,10 @@ class Improver:
 
 
 def main():
+    # tier names and the overlay are Chinese: a console or pipe in the ANSI code page crashed the loop on
+    # "up a tier: 第 2 級" (2026-11-13, round 17)
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     p = argparse.ArgumentParser()
     p.add_argument("--rounds", type=int, default=0, help="0: until Ctrl+C")
     p.add_argument("--collect", type=int, default=12, help="training-map plays per round")
