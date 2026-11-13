@@ -125,9 +125,17 @@ def main():
     teacher = S.teacher("cpu")  # one observation at a time: the CPU is faster
     k = k_from_obs(teacher.observation_space.shape[0])
     for g in args.recs:
-        for f in sorted(glob.glob(g)):
-            if not f.endswith(".labels.npz"):
+        for f in sorted(glob.glob(glob.escape(g)) or glob.glob(g)):
+            if f.endswith(".labels.npz"):
+                continue
+            try:
                 label(f, index, teacher, k)
+            except Exception as e:
+                # one bad recording (a play cut short, a map not found) must not stop the others: before this, one
+                # recording from 2026-11-12 stopped every label run, and nothing new was labelled for 9 rounds
+                print(f"{os.path.basename(f)}: Error, not labelled: {type(e).__name__}: {e}", flush=True)
+                with open(f[:-4] + ".labels.failed", "w", encoding="utf-8") as fh:
+                    fh.write(f"{type(e).__name__}: {e}\n")
 
 
 if __name__ == "__main__":

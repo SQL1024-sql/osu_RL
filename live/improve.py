@@ -240,14 +240,29 @@ class Improver:
         return sorted(set(recs), key=os.path.getmtime, reverse=True)
 
     def label(self, recs):
-        todo = [r for r in recs if not os.path.exists(r[:-4] + ".labels.npz")]
+        # not yet labelled, not given up on (.labels.failed: live.dagger_label could not), and not of a gate map
+        # (never trained on: labelling them would only take time)
+        todo = []
+        for r in recs:
+            if os.path.exists(r[:-4] + ".labels.npz") or os.path.exists(r[:-4] + ".labels.failed"):
+                continue
+            try:
+                if str(np.load(r)["md5"]) in self.gate_md5:
+                    continue
+            except Exception:
+                pass
+            todo.append(r)
         if not todo:
             return
         self.say(f"labelling {len(todo)} recordings")
-        r = subprocess.run([sys.executable, "-m", "live.dagger_label", *todo], capture_output=True, text=True)
-        for line in (r.stdout + r.stderr).splitlines():
-            if "lazer acc" in line or "Error" in line:
-                self.say(line.strip())
+        done = 0
+        for i in range(0, len(todo), 40):  # a few at a time: Windows caps a command line at 32k characters
+            r = subprocess.run([sys.executable, "-m", "live.dagger_label", *todo[i: i + 40]], capture_output=True, text=True)
+            for line in (r.stdout + r.stderr).splitlines():
+                if "Error" in line or "Traceback" in line:
+                    self.say(line.strip())
+                done += "lazer acc" in line
+        self.say(f"labelled {done} of {len(todo)}")
 
     def fit_students(self, teacher):
         """The newest student recordings that fit on the GPU next to the teacher's, the validation recording, the
