@@ -193,6 +193,19 @@ class Improver:
             results.append(self.worker_rows(log_path))
         return results
 
+    def reattach(self):
+        """The capture back on the fork after training: waits (without touching the window) while it is minimized,
+        and tries again while it gives no frames, instead of stopping the loop (2026-11-13: every window had been
+        minimized while the candidate trained)."""
+        while True:
+            self.wait_unminimized()
+            try:
+                self.session.player.attach(wait=False)
+                return
+            except RuntimeError as e:
+                self.say(f"capture not back yet ({e}): trying again in 10 s")
+                time.sleep(10)
+
     def worker_rows(self, log_path):
         """The rows a live.collect process wrote (its session folder is named on its first line)."""
         text = open(log_path, encoding="utf-8", errors="replace").read()
@@ -423,7 +436,7 @@ class Improver:
                 else:
                     self.say("no new recordings this round: no retraining")
                     cand = None
-                self.session.player.attach(wait=False)
+                self.reattach()
                 result = dict(round=rnd, current=self.state["current"], candidate=cand,
                               collected=[r.get("accuracy") for r in rows])
                 if cand:
