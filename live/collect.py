@@ -34,7 +34,8 @@ import zipfile
 import numpy as np
 
 import vision.student as S
-from live.bridge import SKIN_NAME, BridgeClock, import_skin, launch, md5_of
+import live.tablet
+from live.bridge import INSTANCE, SKIN_NAME, BridgeClock, import_skin, launch, md5_of
 from live.tablet import is_fork, lazer_window, window_exe
 from live.vision_play import CKPT, CLICK_TH, MIN_HOLD, VisionPlayer
 
@@ -101,7 +102,7 @@ def map_title(path):
 class Session:
     def __init__(self, args):
         self.args = args
-        self.dir = os.path.join(args.out, time.strftime("%Y%m%d-%H%M%S"))
+        self.dir = os.path.join(args.out, time.strftime("%Y%m%d-%H%M%S") + (f"-i{INSTANCE}" if INSTANCE else ""))
         os.makedirs(self.dir, exist_ok=True)
         self.started = time.time()
         self.plays, self.clock = [], None
@@ -158,7 +159,9 @@ class Session:
             launch()
             self.clock = BridgeClock(connect_timeout=180)
             time.sleep(10)  # the intro
-        self.say(f"connected to the fork: {self.clock.call(cmd='status')}")
+        st = self.clock.call(cmd="status")
+        live.tablet.FORK_PID = st.get("pid")  # several copies may run: capture and watch only this one's window
+        self.say(f"connected to the fork: {st}")
         # the student's skin, no HUD, a borderless window (stays up behind other windows; fullscreen minimizes); in the
         # background nobody is at the mouse, so no menu cursor follows it on the stream
         setup = dict(cmd="setup", skin=SKIN_NAME, window="borderless", hud=False)

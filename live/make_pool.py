@@ -4,6 +4,7 @@ student's labels: a map it plays badly would teach mistakes), and writes them wi
 
     python -m live.make_pool                        # 24 training maps (HF train split) + 2 gate maps (HF val split)
     python -m live.make_pool --train 40 --gate 0    # more training maps; existing files are kept
+    python -m live.make_pool --out runs/maps/tier2 --min-stars 4.5 --max-stars 5.0 --max-ar 9.6   # a harder tier
 
 Writes runs/maps/pool/train/*.osu and runs/maps/pool/gate/*.osu, plus pool.json (each map's stars, length and the
 teacher's simulator accuracy). The fork imports a map the first time it is asked to play it (live.collect).
@@ -65,7 +66,7 @@ def candidates(a, split):
         if r["split"] != split or r["beatmap_id"] in LIVE_IDS or r["approved"] not in ("1", "2"):
             continue
         st, ln, cs, ar = float(r["stars"]), float(r["hit_length"]), float(r["cs"]), float(r["ar"])
-        if a.min_stars <= st <= a.max_stars and a.min_len <= ln <= a.max_len and 3.0 <= cs <= 4.5 and 7.0 <= ar <= 9.3:
+        if a.min_stars <= st <= a.max_stars and a.min_len <= ln <= a.max_len and 3.0 <= cs <= a.max_cs and 7.0 <= ar <= a.max_ar:
             r["path"] = f"maps/hf/{split}/{r['beatmap_id']}.osu"
             if os.path.exists(r["path"]):
                 rows.append(r)
@@ -87,14 +88,19 @@ def main():
     p.add_argument("--max-stars", type=float, default=4.5)
     p.add_argument("--min-len", type=float, default=70, help="drain seconds")
     p.add_argument("--max-len", type=float, default=140)
+    p.add_argument("--max-ar", type=float, default=9.3, help="harder tiers need faster approach rates")
+    p.add_argument("--max-cs", type=float, default=4.5)
+    p.add_argument("--out", default=OUT, help="folder for train/, gate/ and pool.json (a difficulty tier of its own)")
     p.add_argument("--teacher-min", type=float, default=0.95, help="the teacher's simulator accuracy a map needs")
     p.add_argument("--procs", type=int, default=3)
     p.add_argument("--seed", type=int, default=0)
     a = p.parse_args()
-    info_path = os.path.join(OUT, "pool.json")
+    tag = "pool" if os.path.normpath(a.out) == os.path.normpath(OUT) else os.path.basename(os.path.normpath(a.out))
+    info_path = os.path.join(a.out, "pool.json")
+    os.makedirs(a.out, exist_ok=True)
     info = json.load(open(info_path)) if os.path.exists(info_path) else {}
     for split, sub, want in (("train", "train", a.train), ("val", "gate", a.gate)):
-        d = os.path.join(OUT, sub)
+        d = os.path.join(a.out, sub)
         os.makedirs(d, exist_ok=True)
         have = len(glob.glob(os.path.join(d, "*.osu")))
         tried = {v["id"] for v in info.values()}
@@ -104,7 +110,7 @@ def main():
                 batch, todo = todo[: a.procs * 2], todo[a.procs * 2:]
                 for r, acc in zip(batch, ex.map(teacher_acc, [r["path"] for r in batch])):
                     ok = acc >= a.teacher_min and have < want
-                    dst = write_map(r["path"], d, f"pool {sub}") if ok else None
+                    dst = write_map(r["path"], d, f"{tag} {sub}") if ok else None
                     have += ok
                     info[r["path"]] = dict(id=r["beatmap_id"], split=sub, kept=bool(ok), file=dst, teacher=round(acc, 4),
                                            stars=float(r["stars"]), seconds=float(r["hit_length"]), bpm=float(r["bpm"]),

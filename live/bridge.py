@@ -26,13 +26,16 @@ from collections import deque
 
 import numpy as np
 
-PORT = 24051
+# several copies of the fork can play at once (live.improve --instances): copy N (OSU_RL_INSTANCE, 0 = the first) has
+# its own bridge port and data folder (%APPDATA%/osu-rl-N)
+INSTANCE = int(os.environ.get("OSU_RL_INSTANCE") or 0)
+PORT = 24051 + INSTANCE
 # the fork: OSU_RL_FORK_EXE, else a build next to this repo (../ppy-osu), else the copy live.bundle puts in fork/
 EXE_CANDIDATES = [os.environ.get("OSU_RL_FORK_EXE", ""),
                   os.path.join("..", "ppy-osu", "osu.Desktop", "bin", "Release", "net10.0", "osu!.exe"),
                   os.path.join("fork", "osu!.exe")]
 EXE = next((p for p in EXE_CANDIDATES if p and os.path.exists(p)), EXE_CANDIDATES[1])
-DATA = os.path.join(os.environ.get("APPDATA", ""), "osu-rl")
+DATA = os.path.join(os.environ.get("APPDATA", ""), "osu-rl" + (f"-{INSTANCE}" if INSTANCE else ""))
 LIVE_SET = "runs/maps/live_set"
 SKIN = "runs/skin/Neuro-sama number 1 (AI) (osu_rl student).osk"
 SKIN_NAME = "Neuro-sama number 1 (AI) (osu_rl student)"
@@ -210,7 +213,8 @@ def launch(port=PORT):
     if not os.path.exists(EXE):
         raise SystemExit(f"{EXE} is missing: dotnet build ../ppy-osu/osu.Desktop -c Release")
     # settings to start from: the installed lazer's (OSU_RL_SETTINGS_FROM: another folder; one that does not exist: none)
-    src = os.environ.get("OSU_RL_SETTINGS_FROM") or os.path.join(os.environ["APPDATA"], "osu")
+    # (another copy, OSU_RL_INSTANCE > 0: the first copy's)
+    src = os.environ.get("OSU_RL_SETTINGS_FROM") or os.path.join(os.environ["APPDATA"], "osu-rl" if INSTANCE else "osu")
     os.makedirs(DATA, exist_ok=True)
     for f in ("framework.ini", "game.ini", "input.json"):
         if not os.path.exists(os.path.join(DATA, f)) and os.path.exists(os.path.join(src, f)):
@@ -223,7 +227,7 @@ def launch(port=PORT):
     # student did not click once (2026-11-13).
     ini_defaults(os.path.join(DATA, "game.ini"), GAMEPLAY_SETTINGS)
     ini_defaults(os.path.join(DATA, "framework.ini"), {"WindowMode": "Borderless", "MinimiseOnFocusLossInFullscreen": "False"})
-    env = dict(os.environ, OSU_RL_BRIDGE=str(port))
+    env = dict(os.environ, OSU_RL_BRIDGE=str(port), OSU_RL_INSTANCE=str(INSTANCE))
     subprocess.Popen([os.path.abspath(EXE)], cwd=os.path.dirname(os.path.abspath(EXE)), env=env,
                      creationflags=getattr(subprocess, "DETACHED_PROCESS", 0))
 

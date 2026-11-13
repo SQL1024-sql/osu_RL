@@ -76,9 +76,12 @@ def is_fork(exe):
     return bool(exe) and (exe == os.path.normcase(os.path.abspath(bridge.EXE)) or "ppy-osu" in exe.replace("\\", "/"))
 
 
+FORK_PID = None  # set (live.collect.Session.connect) when several copies of the fork run: only this one's window
+
+
 def lazer_window():
     """The visible window whose title starts with "osu!" (lazer adds the map's name while playing); our fork's
-    (live.bridge.EXE) when both it and the installed lazer are open."""
+    (live.bridge.EXE) when both it and the installed lazer are open; the copy with process id FORK_PID when set."""
     found = []
 
     @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
@@ -86,6 +89,11 @@ def lazer_window():
         title = ctypes.create_unicode_buffer(256)
         user32.GetWindowTextW(ctypes.c_void_p(hwnd), title, 256)
         if user32.IsWindowVisible(ctypes.c_void_p(hwnd)) and title.value.startswith("osu!"):
+            if FORK_PID is not None:
+                pid = wintypes.DWORD()
+                user32.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(pid))
+                if pid.value != FORK_PID:
+                    return True
             found.append(hwnd)
         return True
 

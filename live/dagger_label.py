@@ -23,7 +23,8 @@ from state.env import MAX_CURSOR_SPEED, OsuEnv, k_from_obs
 from live.prepare import prepare
 
 
-MAP_GLOBS = ["maps/test/*.osu", "runs/maps/live_set/*.osu", "runs/maps/pool/*/*.osu"]
+MAP_GLOBS = ["maps/test/*.osu", "runs/maps/live_set/*.osu", "runs/maps/pool/*/*.osu",
+             "runs/maps/tier*/*/*.osu"]  # live.improve's difficulty tiers (live.make_pool --out runs/maps/tierN)
 
 
 def map_index(globs):

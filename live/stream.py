@@ -44,7 +44,7 @@ def improve_current():
 def model_name(path):
     """runs/improve/r005/best.pt -> r005; runs/stream/models/20261113-2210-r005.pt -> r005."""
     stem = os.path.splitext(os.path.basename(path))[0]
-    if stem in ("best", "last", "model"):
+    if stem in ("best", "best_cal", "last", "model"):  # live.improve's rNNN/best.pt, or best_cal.pt (live.calibrate)
         stem = os.path.basename(os.path.dirname(path)) or stem
     parts = stem.split("-", 2)
     return parts[2] if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit() else stem
@@ -63,7 +63,7 @@ def check_weights(path):
 def export():
     src = improve_current()
     os.makedirs(OUTBOX, exist_ok=True)
-    name = os.path.basename(os.path.dirname(src)) if os.path.basename(src) == "best.pt" else model_name(src)
+    name = model_name(src)
     dst = os.path.join(OUTBOX, f"{name}.pt")
     shutil.copy2(src, dst)
     print(f"目前上場的模型：{src}\n已複製到：{os.path.abspath(dst)}\n把這個檔案放到直播機的 runs\\stream\\new\\ 資料夾，下一首就會換上。")
@@ -116,7 +116,7 @@ class Streamer:
                              f"{model_name(self.state['current'])} keeps playing")
             return
         stem = os.path.splitext(os.path.basename(f))[0]  # r007.pt from --export; a plain best.pt has no round in it
-        dst = os.path.join(MODELS, f"{time.strftime('%Y%m%d-%H%M')}-{'model' if stem in ('best', 'last') else stem}.pt")
+        dst = os.path.join(MODELS, f"{time.strftime('%Y%m%d-%H%M')}-{'model' if stem in ('best', 'best_cal', 'last') else stem}.pt")
         shutil.move(f, dst)
         old = self.state["current"]
         self.session.player.load(dst)
