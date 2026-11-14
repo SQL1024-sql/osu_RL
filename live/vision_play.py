@@ -132,6 +132,10 @@ class VisionPlayer:
         self.background = background
         self._cur = np.array([256.0, 192.0])  # where the student left the cursor (background: there is no OS cursor)
         self.ckpt, self.click_th, self.min_hold, self.press, self.dry_run = ckpt, click_th, min_hold, press, dry_run
+        # ms added to the frame age the student is told: an older picture makes it act earlier (it was hitting
+        # 6.5 ms late on median, 2026-11-14); live.improve and live.collect set it with --lead-ms
+        self.lead_ms = 0.0
+        self.hold_press = None  # hold logit over which a key is pressed when none is down (None: off)
         self.dev = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = S.Student().to(self.dev).to(memory_format=torch.channels_last)
         self.model.load_state_dict(torch.load(ckpt, map_location=self.dev))
@@ -237,7 +241,7 @@ class VisionPlayer:
                 # frames: the newest, and the ones FRAME_STEPS steps before it
                 newest = cap.ring[-1][0]
                 imgs, shown = cap.frames(newest - np.array(S.FRAME_STEPS) * dt)
-                lat_ms = float(np.clip((now - newest) * 1000, 0, S.MAX_LAT))
+                lat_ms = float(np.clip((now - newest) * 1000 + self.lead_ms, 0, S.MAX_LAT))
                 hs_t = np.array([h[0] for h in hist])
                 dots = np.array([hist[int(np.clip(np.searchsorted(hs_t, s, side="right") - 1, 0, len(hist) - 1))][1] for s in shown])
                 img = torch.tensor(imgs, device=dev).float().div_(255).view(S.N_FRAMES, H, W)
@@ -249,6 +253,13 @@ class VisionPlayer:
                 m, (c, h) = m.float().cpu().numpy()[0], kl.float().cpu().numpy()[0]
                 # keys exactly as student.rollouts: one click per peak of the click logit above the threshold
                 fire = prev > S.CLICK_TH and c < prev and not fired and step - last_fire >= S.CLICK_GAP
+                # no key down while the hold logit is sure a key should be (hold_press): press one. A spinner right after
+                # a slider gets a click logit just under the threshold, then a hold logit over +10 with no key to hold:
+                # every fine-tuned candidate failed every spinner that way, r001 cleared the threshold by a hair
+                # (2026-11-14)
+                if not fire and self.hold_press is not None and h > self.hold_press and not held.any() \
+                        and step - last_fire >= S.CLICK_GAP:
+                    fire = True
                 if fire:
                     last_fire = step
                 fired = (fired or fire) and c > S.CLICK_TH

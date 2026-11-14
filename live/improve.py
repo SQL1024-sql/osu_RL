@@ -80,6 +80,18 @@ def rec_gb(path):
     return total / 2 ** 30
 
 
+def avail_ram_gb():
+    """System memory free right now (GB)."""
+    class MS(ctypes.Structure):
+        _fields_ = [("len", ctypes.c_ulong), ("load", ctypes.c_ulong), ("total", ctypes.c_ulonglong),
+                    ("avail", ctypes.c_ulonglong), ("tp", ctypes.c_ulonglong), ("ap", ctypes.c_ulonglong),
+                    ("tv", ctypes.c_ulonglong), ("av", ctypes.c_ulonglong), ("ext", ctypes.c_ulonglong)]
+    m = MS()
+    m.len = ctypes.sizeof(m)
+    ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m))
+    return m.avail / 2 ** 30
+
+
 def fork_minimized():
     """True if the fork is running with its window minimized."""
     try:
@@ -107,7 +119,8 @@ class Improver:
                                    click_th=a.click_th, min_hold=a.min_hold, press="first", record=True, min_fps=50,
                                    max_gb=0, restart_fork_mb=6000, out=os.path.join(a.out, "plays"),
                                    background=not a.foreground, view=a.view or None, view_style=a.view_style,
-                                   overlay=os.path.join(a.out, "overlay.txt"))
+                                   overlay=os.path.join(a.out, "overlay.txt"), lead_ms=a.lead_ms,
+                                   hold_press=a.hold_press)
         self.session = Session(sargs)
         self.phase = "start"
         self.session.overlay_head = self.overlay_lines
@@ -168,30 +181,60 @@ class Improver:
         return rows
 
     def play_groups(self, groups):
-        """Several copies of the fork at once (--instances): groups[0] = (model, maps) plays here, on the first copy
-        (the one on stream); each other group in a live.collect process of its own, on copy 1, 2, ... in the
-        background. -> one list of rows per group"""
+        """Several copies of the fork at once (--instances): groups[0] = (model, maps[, lead ms[, hold press]]) plays here, on the
+        first copy (the one on stream); each other group in a live.collect process of its own, on copy 1, 2, ... in
+        the background. -> one list of rows per group"""
         workers = []
-        for i, (ckpt, maps) in enumerate(groups[1:], 1):
+        lead = lambda g: g[2] if len(g) > 2 else self.a.lead_ms
+        hp = lambda g: g[3] if len(g) > 3 else self.a.hold_press
+        for i, g in enumerate(groups[1:], 1):
+            ckpt, maps = g[0], g[1]
             log_path = os.path.join(self.a.out, "workers", f"copy{i}-{time.strftime('%Y%m%d-%H%M%S')}.log")
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             cmd = [sys.executable, "-u", "-m", "live.collect", "--background", "--maps", *map(glob.escape, maps),
                    "--plays", str(len(maps)),
                    "--ckpt", ckpt, "--click-th", str(self.a.click_th), "--min-hold", str(self.a.min_hold),
-                   "--out", os.path.join(self.a.out, "plays")]
+                   "--lead-ms", str(lead(g)), "--out", os.path.join(self.a.out, "plays")] \
+                + (["--hold-press", str(hp(g))] if hp(g) is not None else [])
             log = open(log_path, "w", encoding="utf-8")
             workers.append((subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT,
                                              env=dict(os.environ, OSU_RL_INSTANCE=str(i), PYTHONIOENCODING="utf-8")),
                             log, log_path))
-        ckpt, maps = groups[0]
+        ckpt, maps = groups[0][0], groups[0][1]
         if ckpt != self.session.args.ckpt:
             self.use(ckpt)
-        results = [self.play_maps(maps, len(maps))]
+        self.session.player.lead_ms, self.session.player.hold_press = lead(groups[0]), hp(groups[0])
+        try:
+            results = [self.play_maps(maps, len(maps))]
+        finally:
+            self.session.player.lead_ms, self.session.player.hold_press = self.a.lead_ms, self.a.hold_press
         for proc, log, log_path in workers:
             proc.wait()
             log.close()
             results.append(self.worker_rows(log_path))
         return results
+
+    def close_extra_copies(self):
+        """Closes the copies of the fork other than the first (the one on stream) while the candidate trains: each
+        holds 2-6 GB of system memory (the recordings' frames live there now) and slows training down (28 -> 36
+        ms/update with 3 idle copies). The next collect starts them again."""
+        import live.tablet
+        keep = live.tablet.FORK_PID
+        r = subprocess.run(["powershell", "-NoProfile", "-Command",
+                            "Get-Process -Name 'osu!' -ErrorAction SilentlyContinue | ForEach-Object { \"$($_.Id)|$($_.Path)\" }"],
+                           capture_output=True, text=True)
+        closed = 0
+        for line in r.stdout.splitlines():
+            pid, _, path = line.strip().partition("|")
+            if pid.isdigit() and int(pid) != keep and is_fork(path):
+                try:
+                    os.kill(int(pid), 9)
+                    closed += 1
+                except OSError:
+                    pass
+        if closed:
+            self.say(f"closed {closed} extra copies of the fork while training")
+            time.sleep(3)
 
     def reattach(self):
         """The capture back on the fork after training: waits (without touching the window) while it is minimized,
@@ -252,19 +295,50 @@ class Improver:
             recs.append(f)
         return sorted(set(recs), key=os.path.getmtime, reverse=True)
 
+    def gate_recs(self, ckpt, labelled=None):
+        """Recordings of gate-map plays by this model, newest first (labelled: only those with / without labels)."""
+        want = os.path.normcase(os.path.normpath(ckpt))
+        out = []
+        for f in sorted(glob.glob(os.path.join(self.a.out, "plays", "*", "*-rec.npz")), key=os.path.getmtime, reverse=True):
+            has = os.path.exists(f[:-4] + ".labels.npz")
+            if labelled is not None and has != labelled or os.path.exists(f[:-4] + ".labels.failed"):
+                continue
+            try:
+                z = np.load(f)
+                if str(z["md5"]) not in self.gate_md5:
+                    continue
+                if os.path.normcase(os.path.normpath(str(np.load(str(z["play"]))["ckpt"]))) != want:
+                    continue
+            except Exception:
+                continue
+            out.append(f)
+            if len(out) >= self.a.val_recs:
+                break
+        return out
+
+    def val_recs(self):
+        """Held-out recordings that pick the candidate's weights: the newest gate plays of the model playing now, the
+        states the student itself gets into on maps it never trains on (the old one, a teacher recording from
+        2026-11-11, said nothing about how the student plays: its loss fell while gate scores dropped)."""
+        recs = self.gate_recs(self.state["current"], labelled=True)
+        return recs if len(recs) >= 3 else [VAL_REC]
+
     def label(self, recs):
         # not yet labelled, not given up on (.labels.failed: live.dagger_label could not), and not of a gate map
-        # (never trained on: labelling them would only take time)
+        # (never trained on: labelling them would only take time), except the newest gate plays of the model
+        # playing now (val_recs)
         todo = []
+        val = set(self.gate_recs(self.state["current"]))
         for r in recs:
             if os.path.exists(r[:-4] + ".labels.npz") or os.path.exists(r[:-4] + ".labels.failed"):
                 continue
             try:
-                if str(np.load(r)["md5"]) in self.gate_md5:
+                if str(np.load(r)["md5"]) in self.gate_md5 and r not in val:
                     continue
             except Exception:
                 pass
             todo.append(r)
+        todo += [r for r in val if r not in todo and not os.path.exists(r[:-4] + ".labels.npz")]
         if not todo:
             return
         self.say(f"labelling {len(todo)} recordings")
@@ -277,36 +351,46 @@ class Improver:
                 done += "lazer acc" in line
         self.say(f"labelled {done} of {len(todo)}")
 
-    def fit_students(self, teacher):
-        """The newest student recordings that fit on the GPU next to the teacher's, the validation recording, the
-        rendered pool and training itself (live.finetune_real keeps all of them on the GPU; past the card's memory
-        Windows spills into system RAM and training runs 2-4x slower), at most --max-recs in all."""
-        students = self.student_recs()[: max(0, self.a.max_recs - len(teacher))]
-        try:
-            import torch
-            free = torch.cuda.mem_get_info()[0] / 2 ** 30
-        except Exception:
-            return students
-        budget = free - TRAIN_FIXED_GB - self.a.vram_margin_gb - sum(map(rec_gb, teacher + [VAL_REC]))
-        fit = []
-        for f in students:
-            if rec_gb(f) > budget:
+    def fit_students(self, teacher, val):
+        """Student recordings for this training run, their frames kept in system memory (live.finetune_real --frames
+        cpu): as many as --ram-gb and the memory free now allow, half of them the newest, half drawn at random from
+        the older ones (DAgger aggregates: training only on the last round's plays forgot what earlier ones taught)."""
+        students = self.student_recs()
+        free = avail_ram_gb()
+        budget = min(self.a.ram_gb, free - self.a.ram_margin_gb) - sum(map(rec_gb, teacher + val))
+        sizes = {f: rec_gb(f) for f in students[: self.a.max_recs * 3]}
+        fit, used = [], 0.0
+        for f in students:  # the newest, up to half the budget
+            if f not in sizes or used + sizes[f] > budget / 2 or len(fit) >= self.a.max_recs // 2:
                 break
-            budget -= rec_gb(f)
             fit.append(f)
-        self.say(f"GPU free {free:.1f} GB: {len(fit)} of {len(students)} student recordings fit")
+            used += sizes[f]
+        older = [f for f in students[len(fit):] if f in sizes]
+        random.shuffle(older)
+        for f in older:
+            if used + sizes[f] <= budget and len(fit) < self.a.max_recs:
+                fit.append(f)
+                used += sizes[f]
+        self.say(f"system memory free {free:.1f} GB: {len(fit)} of {len(students)} student recordings "
+                 f"({used:.1f} GB of frames)")
         return fit
 
     def retrain(self, rnd):
         teacher = sorted({f for g in TEACHER_RECS for f in glob.glob(g) if not f.endswith(".labels.npz")})
-        students = self.fit_students(teacher)
+        if self.a.instances > 1:
+            self.close_extra_copies()
+        val = self.val_recs()
+        students = self.fit_students(teacher, val)
         out = os.path.join(self.a.out, f"r{rnd:03d}")
         while os.path.exists(out):  # a round that was stopped before it finished: keep what it left
             out += "b"
         init = self.state["current"] if self.a.init == "current" else self.a.init
-        cmd = [sys.executable, "-u", "-m", "live.finetune_real", *teacher, *students, "--val", VAL_REC, "--clicks", "map",
-               "--init", init, "--updates", str(self.a.updates), "--lr", str(self.a.lr), "--out", out]
-        self.say(f"retraining from {init} on {len(teacher)} teacher + {len(students)} student recordings -> {out}")
+        cmd = [sys.executable, "-u", "-m", "live.finetune_real", *teacher, *students, "--val", *val, "--clicks", "map",
+               "--init", init, "--updates", str(self.a.updates), "--lr", str(self.a.lr), "--frames", "cpu",
+               "--spin-frac", str(self.a.spin_frac), "--out", out] + (["--spin-rule"] if self.a.spin_rule else [])
+        self.say(f"retraining from {init} on {len(teacher)} teacher + {len(students)} student recordings, held out: "
+                 f"{len(val)} gate plays of the model playing now -> {out}" if val != [VAL_REC] else
+                 f"retraining from {init} on {len(teacher)} teacher + {len(students)} student recordings -> {out}")
         with open(out + "-train.log", "w", encoding="utf-8") as log:
             proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)
             # the stream never stops: the current model keeps playing training maps while the candidate trains
@@ -383,6 +467,11 @@ class Improver:
         scores = {"current": [], "candidate": []}
         by_map = {"current": {}, "candidate": {}}
         models = {"current": self.state["current"], "candidate": cand}
+        pairs = []  # candidate minus current on one map in one repetition (played at the same time on two copies)
+
+        def pair(rows_by_who):
+            acc = {w: {r["map"]: r["accuracy"] for r in rows if r.get("accuracy") is not None} for w, rows in rows_by_who.items()}
+            pairs.extend(acc["candidate"][m] - acc["current"][m] for m in acc["candidate"] if m in acc["current"])
         # each repetition: both models on every gate map, in turn on one copy, at the same time on two; as many
         # repetitions at once as copies allow, sides swapped so that over the gate each model plays on every copy as
         # often as the other (a copy that scores higher or lower then favours neither; with 4 copies use --gate 4)
@@ -390,21 +479,23 @@ class Improver:
         reps = [("current", "candidate") if (i % per + i // per) % 2 == 0 else ("candidate", "current") for i in range(self.a.gate)]
         for b in range(0, len(reps), per):
             if self.a.instances < 2:
+                got = {}
                 for who in reps[b]:
-                    for row in self.play_groups([(models[who], gate_maps)])[0]:
-                        if row.get("accuracy") is not None:
-                            scores[who].append(row["accuracy"])
-                            by_map[who].setdefault(row["map"], []).append(row["accuracy"])
-                continue
-            order = [who for rep in reps[b: b + per] for who in rep]
-            for who, rows in zip(order, self.play_groups([(models[who], gate_maps) for who in order])):
+                    got[who] = self.play_groups([(models[who], gate_maps)])[0]
+                groups_rows = [(w, got[w]) for w in reps[b]]
+            else:
+                order = [who for rep in reps[b: b + per] for who in rep]
+                groups_rows = list(zip(order, self.play_groups([(models[who], gate_maps) for who in order])))
+            for who, rows in groups_rows:
                 for r in rows:
                     if r.get("accuracy") is not None:
                         scores[who].append(r["accuracy"])
                         by_map[who].setdefault(r["map"], []).append(r["accuracy"])
+            for k in range(0, len(groups_rows) - 1, 2):  # the two models of one repetition
+                pair(dict(groups_rows[k: k + 2]))
         self.use(self.state["current"])
         mean = lambda v: float(np.mean(v)) if v else float("nan")
-        return mean(scores["current"]), mean(scores["candidate"]), scores, by_map
+        return mean(scores["current"]), mean(scores["candidate"]), scores, by_map, pairs
 
     def run(self):
         a = self.a
@@ -441,11 +532,20 @@ class Improver:
                               collected=[r.get("accuracy") for r in rows])
                 if cand:
                     self.set_phase("gate")
-                    cur, new, scores, by_map = self.gate(cand)
-                    better = np.isfinite(new) and np.isfinite(cur) and (new - cur) * 100 >= a.margin
-                    result.update(gate_current=cur, gate_candidate=new, gate_scores=scores, swapped=bool(better))
-                    self.say(f"round {rnd} gate: current {cur:.2%}, candidate {new:.2%} -> "
-                             + ("candidate takes over" if better else "current stays"))
+                    cur, new, scores, by_map, pairs = self.gate(cand)
+                    # paired: the candidate minus the current model on the same map in the same repetition, so how
+                    # hard each map is cancels out. Takes over when it is ahead by --margin points with t >= --swap-t
+                    # (rounds 10-28: the candidate was ahead in 18 of 19 gates, +0.66 points on average, yet never
+                    # by the 2 points the old rule asked, so nothing it learnt ever carried over to the next round)
+                    d = np.array(pairs) * 100
+                    pm = float(d.mean()) if len(d) else float("nan")
+                    pse = float(d.std(ddof=1) / np.sqrt(len(d))) if len(d) > 1 else float("inf")
+                    pt = pm / pse if len(d) > 1 and pse > 0 else 0.0
+                    better = len(d) >= 3 and pm >= a.margin and pt >= a.swap_t
+                    result.update(gate_current=cur, gate_candidate=new, gate_scores=scores, swapped=bool(better),
+                                  paired_mean=pm, paired_se=pse, paired_n=len(d))
+                    self.say(f"round {rnd} gate: current {cur:.2%}, candidate {new:.2%}; paired {pm:+.2f} ± {pse:.2f} "
+                             f"points over {len(d)} pairs (t {pt:.1f}) -> " + ("candidate takes over" if better else "current stays"))
                     if better:
                         self.state["current"] = cand
                         self.use(cand)
@@ -474,7 +574,10 @@ def main():
     p.add_argument("--rounds", type=int, default=0, help="0: until Ctrl+C")
     p.add_argument("--collect", type=int, default=12, help="training-map plays per round")
     p.add_argument("--gate", type=int, default=2, help="plays of each gate map per model per round")
-    p.add_argument("--margin", type=float, default=2.0, help="accuracy points the candidate must win by")
+    p.add_argument("--margin", type=float, default=0.3,
+                   help="accuracy points the candidate must be ahead by, paired (the same map in the same repetition)")
+    p.add_argument("--swap-t", type=float, default=1.0,
+                   help="... and paired mean / its standard error at least this (1.0: ahead with ~84%% confidence)")
     p.add_argument("--updates", type=int, default=6000)
     p.add_argument("--lr", type=float, default=3e-5,
                    help="fine-tuning learning rate (2026-11-13, calibrated, vs r001 on the gate: 3e-5 x 6000 86.1%%, 3e-5 x 2000 "
@@ -483,8 +586,20 @@ def main():
                    help="what each candidate trains from: the model playing now (current), or a weights file such as "
                         "results/experiments/020-student/seed0/round6.pt (from round 3 on: candidates from round6 kept losing)")
     p.add_argument("--start", default=START, help="the model that plays first (when there is no state.json yet)")
-    p.add_argument("--max-recs", type=int, default=64,
-                   help="at most this many recordings per training run; fewer when they do not fit on the GPU")
+    p.add_argument("--max-recs", type=int, default=200, help="at most this many student recordings per training run")
+    p.add_argument("--ram-gb", type=float, default=14, help="system memory for the training recordings' frames")
+    p.add_argument("--ram-margin-gb", type=float, default=6, help="system memory left free when picking them")
+    p.add_argument("--spin-frac", type=float, default=0.1,
+                   help="share of real training samples drawn from inside spinners (fine-tuning forgot how to spin)")
+    p.add_argument("--no-spin-rule", dest="spin_rule", action="store_false",
+                   help="train spinner moves on the teacher's (they average to no spinning) instead of live.finetune_real.spin_moves")
+    p.add_argument("--val-recs", type=int, default=8,
+                   help="newest gate plays of the model playing now held out to pick the candidate's weights")
+    p.add_argument("--hold-press", type=float, default=8.0,
+                   help="press a key when none is down and the hold logit is over this (spinners need it: their click is "
+                        "missed after a slider); 2026-11-14 gate: r001 83.95%% without, 83.96%% with")
+    p.add_argument("--lead-ms", type=float, default=0.0,
+                   help="ms added to the frame age the student is told (it acts that much earlier)")
     p.add_argument("--vram-margin-gb", type=float, default=0.8,
                    help="GPU memory left free when picking how many recordings train (so nothing spills to system RAM)")
     p.add_argument("--click-th", type=float, default=-0.75)

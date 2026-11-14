@@ -79,7 +79,8 @@ class Streamer:
                                    ckpt=self.state["current"], click_th=a.click_th, min_hold=a.min_hold, press="first",
                                    record=a.record, min_fps=50, max_gb=a.max_gb, restart_fork_mb=6000,
                                    out=os.path.join(DIR, "plays"), background=not a.foreground, view=a.view or None,
-                                   view_style=a.view_style, overlay=os.path.join(DIR, "overlay.txt"))
+                                   view_style=a.view_style, overlay=os.path.join(DIR, "overlay.txt"),
+                                   hold_press=a.hold_press)
         self.session = Session(sargs)
         self.session.overlay_head = self.overlay_lines
         self._session_play = self.session.play
@@ -147,6 +148,8 @@ def main():
                    help="keep the frames of every play (~130 MB a map), to bring back for training")
     p.add_argument("--max-gb", type=float, default=50, help="with --record: stop keeping frames past this much")
     p.add_argument("--click-th", type=float, default=-0.75)
+    p.add_argument("--hold-press", type=float, default=8.0,
+                   help="press a key when none is down and the hold logit is over this (spinners)")
     p.add_argument("--min-hold", type=int, default=5)
     p.add_argument("--view", type=int, default=8770, metavar="PORT", help="the student's view for OBS; 0: off")
     p.add_argument("--view-style", choices=["neuro", "input"], default="neuro")

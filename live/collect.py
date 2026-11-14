@@ -112,6 +112,8 @@ class Session:
         self.player = VisionPlayer(args.ckpt, args.click_th, args.min_hold, args.press, view=getattr(args, "view", None),
                                    view_style=getattr(args, "view_style", "input"),
                                    background=args.background)
+        self.player.lead_ms = getattr(args, "lead_ms", 0.0)
+        self.player.hold_press = getattr(args, "hold_press", None)
         self.overlay_head = lambda: []  # -> first lines of the overlay text (live.improve: the round, what it does)
         self.say(f"session {self.dir}: model {args.ckpt}, click threshold {args.click_th}, min hold {args.min_hold}, press {args.press}")
 
@@ -359,6 +361,9 @@ def main():
     p.add_argument("--click-th", type=float, default=CLICK_TH)
     p.add_argument("--min-hold", type=int, default=MIN_HOLD)
     p.add_argument("--press", choices=["first", "after", "same"], default="first")
+    p.add_argument("--lead-ms", type=float, default=0.0, help="ms added to the frame age the student is told (acts earlier)")
+    p.add_argument("--hold-press", type=float, default=None,
+                   help="press a key when none is down and the hold logit is over this (spinners); default off")
     p.add_argument("--no-record", dest="record", action="store_false", help="do not keep the frames")
     p.add_argument("--min-fps", type=float, default=50,
                    help="capture speed a map needs to start (measured on the results screen, where it runs lower than in "

@@ -26,13 +26,34 @@ from vision.gpu_render import draw_dots
 from live.dagger_label import MAP_GLOBS, load_labels, map_index
 from vision.render import H, W
 
+SPIN_CENTER, SPIN_RADIUS, SPIN_SPEED = np.array([256.0, 192.0]), 60.0, 0.9
+
+
+def spin_moves(pos):
+    """Moves for cursor positions inside a spinner: around the playfield centre, clockwise on screen (the way r001
+    spins), at SPIN_SPEED of the top speed, steered towards SPIN_RADIUS. The teacher's own spinner moves are no lesson:
+    around the centre they average to nothing (it wiggles off-centre, which the simulator accepts), and in the
+    student's states it points one way, then the other; trained on them, every candidate stopped spinning
+    (0.12 turns/s against r001's 2, 2026-11-14)."""
+    r = pos - SPIN_CENTER
+    d = np.linalg.norm(r, axis=1, keepdims=True) + 1e-6
+    tangent = np.c_[r[:, 1], -r[:, 0]] / d  # clockwise on screen (y down)
+    radial = -r / d * np.clip((d - SPIN_RADIUS) / SPIN_RADIUS, -1, 1)
+    v = tangent + radial
+    return (v / (np.linalg.norm(v, axis=1, keepdims=True) + 1e-6) * SPIN_SPEED).astype(np.float32)
+
+
 class RealTracks:
     """Recordings on the GPU, sampled like student.Tracks: random steps of the teacher's play, the 4 frames the screen
     showed before each (latest recorded frame at or before each frame time), the teacher's cursor drawn in, aux, and
     the labels live.dagger_label wrote for it (the teacher's answer in the state the play was in). spans: per recording, the game time range (ms) to sample from, or None."""
 
-    def __init__(self, recs, index, dev, spans=None, clicks="map"):
-        self.dev, self.recs = dev, []
+    def __init__(self, recs, index, dev, spans=None, clicks="map", frames_dev=None, spin_frac=0.0, spin_rule=False):
+        """frames_dev "cpu": the frames stay in system memory and each batch's are copied over, so far more
+        recordings fit than in GPU memory. spin_frac: that share of each recording's samples drawn from inside its
+        spinners (fine-tuning washed spinning out: spinners are a sliver of a play, 2026-11-13)."""
+        self.dev, self.recs, self.spin_frac = dev, [], spin_frac
+        frames_dev = frames_dev or dev
         for n, path in enumerate(recs):
             r = np.load(path)
             md5 = str(r["md5"])
@@ -43,8 +64,19 @@ class RealTracks:
             lo, hi = max(t[0], tt[0]) + 300, min(t[-1], tt[-1]) - 20
             if spans and spans[n]:
                 lo, hi = max(lo, spans[n][0]), min(hi, spans[n][1])
-            self.recs.append(dict(path=path, map=index[md5], lo=lo, hi=hi,
-                                  frames=torch.tensor(r["frames"], device=dev),  # uint8 (n, H, W)
+            frames = torch.from_numpy(np.ascontiguousarray(r["frames"]))  # uint8 (n, H, W)
+            # (not pinned: Windows caps page-locked memory, and pinning 9 GB of frames failed with "CUDA out of memory")
+            frames = frames if frames_dev == "cpu" else frames.to(frames_dev)
+            sc = S.scene(index[md5])
+            spins = [(max(lo, float(a) + 150), min(hi, float(b) - 100)) for a, b, k in zip(sc.start, sc.end, sc.kind) if k == 2]
+            spins = [(a, b) for a, b in spins if b - a > 200]
+            if spin_rule:  # moves inside spinners from spin_moves, not the teacher
+                for a, b, k in zip(sc.start, sc.end, sc.kind):
+                    if k == 2:
+                        m = (tt >= a) & (tt <= b)
+                        lab = lab.copy()
+                        lab[m, :2] = spin_moves(pos[m])
+            self.recs.append(dict(path=path, map=index[md5], lo=lo, hi=hi, spins=spins, frames=frames,
                                   rec_t=torch.tensor(t, device=dev), tt=torch.tensor(tt, device=dev),
                                   pos=torch.tensor(pos, dtype=torch.float32, device=dev),
                                   lab=torch.tensor(lab, device=dev)))
@@ -64,12 +96,19 @@ class RealTracks:
                 continue
             at = lambda t: (torch.searchsorted(r["tt"], t.double().contiguous(), right=True) - 1).clamp(0, len(r["tt"]) - 1)
             t = r["lo"] + (r["hi"] - r["lo"]) * torch.rand(n, generator=gen, device=dev, dtype=torch.float64)
+            if self.spin_frac and r["spins"]:
+                ns = int(round(self.spin_frac * n))
+                if ns:
+                    sp = torch.tensor(r["spins"], device=dev, dtype=torch.float64)
+                    j = torch.multinomial(sp[:, 1] - sp[:, 0], ns, replacement=True, generator=gen)
+                    t[:ns] = sp[j, 0] + (sp[j, 1] - sp[j, 0]) * torch.rand(ns, generator=gen, device=dev, dtype=torch.float64)
             lat = torch.rand(n, generator=gen, device=dev) * S.MAX_LAT
             lag = torch.randint(0, 3, (n, 1), generator=gen, device=dev) * S.DT  # cursor drawn up to 2 frames late
             rad = 1.5 + 1.5 * torch.rand(n, 1, generator=gen, device=dev)
             times = t[:, None] - lat[:, None].double() - torch.tensor(S.FRAME_STEPS, device=dev) * S.DT  # (n, 4)
             k = (torch.searchsorted(r["rec_t"], times.contiguous(), right=True) - 1).clamp(min=0)
-            frames = r["frames"][k].float() / 255
+            fr = r["frames"]
+            frames = (fr[k.cpu()].to(dev, non_blocking=True) if fr.device != k.device else fr[k]).float() / 255
             dots = torch.cat([r["pos"][at(times - lag)], rad[:, :, None].expand(-1, S.N_FRAMES, 1)], 2)
             img[m] = draw_dots(frames.view(-1, H, W), dots.reshape(-1, 3)).view(n, S.N_FRAMES, H, W)
             g = at(t)  # the labelled step: the teacher's answer in the state the play was in
@@ -99,6 +138,10 @@ def main():
     p.add_argument("--real-frac", type=float, default=0.5, help="share of each batch from real frames")
     p.add_argument("--synth-pool", type=int, default=300,
                    help="rendered batches made up front and drawn from at random (rendering without triton is slow)")
+    p.add_argument("--frames", choices=["gpu", "cpu"], default="gpu",
+                   help="where the recordings' frames are kept: cpu fits many more recordings (each batch is copied over)")
+    p.add_argument("--spin-frac", type=float, default=0.0, help="share of real samples drawn from inside spinners")
+    p.add_argument("--spin-rule", action="store_true", help="moves inside spinners from spin_moves, not the teacher's")
     p.add_argument("--updates", type=int, default=6000)
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--every", type=int, default=500)
@@ -109,8 +152,10 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     index = map_index(args.maps)
     if args.val:
-        real = RealTracks(args.recs, index, dev, clicks=args.clicks)
-        held = RealTracks(args.val, index, dev, clicks=args.clicks)
+        fd = "cpu" if args.frames == "cpu" else dev
+        real = RealTracks(args.recs, index, dev, clicks=args.clicks, frames_dev=fd, spin_frac=args.spin_frac,
+                          spin_rule=args.spin_rule)
+        held = RealTracks(args.val, index, dev, clicks=args.clicks, frames_dev=fd)
         split_ms = None
     else:
         tt = load_labels(args.recs[-1])[0]
