@@ -53,8 +53,7 @@ def model_name(path):
 def check_weights(path):
     """None if this file holds weights for the student's network, else what is wrong with it."""
     try:
-        sd = torch.load(path, map_location="cpu")
-        S.Student().load_state_dict(sd)  # strict: every weight there, every shape right
+        S.make_model(path, "cpu")  # strict: every weight there, every shape right (with or without a close-up)
         return None
     except Exception as e:
         return f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
@@ -80,7 +79,7 @@ class Streamer:
                                    record=a.record, min_fps=50, max_gb=a.max_gb, restart_fork_mb=6000,
                                    out=os.path.join(DIR, "plays"), background=not a.foreground, view=a.view or None,
                                    view_style=a.view_style, overlay=os.path.join(DIR, "overlay.txt"),
-                                   hold_press=a.hold_press)
+                                   hold_press=a.hold_press, smooth=a.smooth)
         self.session = Session(sargs)
         self.session.overlay_head = self.overlay_lines
         self._session_play = self.session.play
@@ -148,6 +147,7 @@ def main():
                    help="keep the frames of every play (~130 MB a map), to bring back for training")
     p.add_argument("--max-gb", type=float, default=50, help="with --record: stop keeping frames past this much")
     p.add_argument("--click-th", type=float, default=-0.75)
+    p.add_argument("--smooth", type=float, default=0.5, help="weight of each new move against the last one (damps jitter)")
     p.add_argument("--hold-press", type=float, default=8.0,
                    help="press a key when none is down and the hold logit is over this (spinners)")
     p.add_argument("--min-hold", type=int, default=5)

@@ -95,27 +95,30 @@ class SceneTable:
                     spans=self.spans[g], path=self.path[g], per=torch.cat([t[:, None].float(), self.per_map[map_ids]], 1))
 
 
-def _grid(device):
-    gx = X0 + (torch.arange(W, device=device) + 0.5) / PX
-    gy = Y0 + (torch.arange(H, device=device) + 0.5) / PX
-    return gx.view(1, 1, W), gy.view(1, H, 1)
+def _grid(device, origin=None, px=PX, w=W, h=H):
+    """Pixel centres in osu! px: the fixed frame, or with origin (B, 2) a w x h view per frame (e.g. the close-up)."""
+    ax, ay = (torch.arange(w, device=device) + 0.5) / px, (torch.arange(h, device=device) + 0.5) / px
+    if origin is None:
+        return (X0 + ax).view(1, 1, w), (Y0 + ay).view(1, h, 1)
+    return origin[:, 0].view(-1, 1, 1) + ax.view(1, 1, w), origin[:, 1].view(-1, 1, 1) + ay.view(1, h, 1)
 
 
-def _disk(d, rad):
-    return ((rad - d) * PX + 0.5).clamp(0, 1)  # coverage of a pixel by a disk, 1 px soft edge
+def _disk(d, rad, px=PX):
+    return ((rad - d) * px + 0.5).clamp(0, 1)  # coverage of a pixel by a disk, 1 px soft edge
 
 
-def _ring(d, rad, width):
-    return ((width / 2 - (d - rad).abs()) * PX + 0.5).clamp(0, 1)
+def _ring(d, rad, width, px=PX):
+    return ((width / 2 - (d - rad).abs()) * px + 0.5).clamp(0, 1)
 
 
-def render(p):
-    """-> (B, H, W) float in [0, 1]."""
-    gx, gy = _grid(p["per"].device)
+def render(p, origin=None, px=PX, w=W, h=H):
+    """-> (B, H, W) float in [0, 1]; with origin (B, 2) a w x h view at px pixels per osu! pixel from there (the
+    close-up around the cursor: what render_fast does with triton, here in torch)."""
+    gx, gy = _grid(p["per"].device, origin, px, w, h)
     t, r, pre, fade = (p["per"][:, i].view(-1, 1, 1) for i in range(4))
-    rim_w = (RIM_W * r * PX).round().clamp(min=1) / PX
-    app_w = (APPROACH_W * r * PX).round().clamp(min=1) / PX
-    out = torch.zeros(t.shape[0], H, W, device=t.device)
+    rim_w = (RIM_W * r * px).round().clamp(min=1) / px
+    app_w = (APPROACH_W * r * px).round().clamp(min=1) / px
+    out = torch.zeros(t.shape[0], h, w, device=t.device)
     for v in reversed(range(V)):  # earlier objects end up on top
         ok = p["valid"][:, v].view(-1, 1, 1)
         kind = p["kind"][:, v].view(-1, 1, 1)
@@ -134,7 +137,7 @@ def render(p):
             dk = (gx - path[:, k, 0].view(-1, 1, 1)) ** 2 + (gy - path[:, k, 1].view(-1, 1, 1)) ** 2
             d2 = torch.where(shown >= k, torch.minimum(d2, dk), d2)
         db = d2.sqrt()
-        body, inner = _disk(db, r) * slider, _disk(db, 0.85 * r) * slider
+        body, inner = _disk(db, r, px) * slider, _disk(db, 0.85 * r, px) * slider
         layer = BORDER * (body - inner) + BODY * inner
         mask = body
 
@@ -148,7 +151,7 @@ def render(p):
         ball = path[torch.arange(len(lo)), lo] * (1 - w[:, None]) + path[torch.arange(len(lo)), lo + 1] * w[:, None]
         c = torch.where((slider & (t > start)).view(-1, 1), ball, path[:, 0])
         dc = torch.sqrt((gx - c[:, 0].view(-1, 1, 1)) ** 2 + (gy - c[:, 1].view(-1, 1, 1)) ** 2)
-        disk, num, rim = _disk(dc, r), _disk(dc, r / 4), _ring(dc, r, rim_w)
+        disk, num, rim = _disk(dc, r, px), _disk(dc, r / 4, px), _ring(dc, r, rim_w, px)
         layer = torch.lerp(layer, torch.full_like(layer, FILL), disk)
         layer = torch.lerp(layer, torch.full_like(layer, NUMBER), num)
         layer = torch.lerp(layer, torch.full_like(layer, RIM), rim)
@@ -157,14 +160,14 @@ def render(p):
         # approach circle: 4r down to r around the head
         dh = torch.sqrt((gx - path[:, 0, 0].view(-1, 1, 1)) ** 2 + (gy - path[:, 0, 1].view(-1, 1, 1)) ** 2)
         a = ((t - appear) / torch.minimum(2 * fade, pre)).clamp(0, 1) * (t < start)
-        cov = _ring(dh, r * (1 + 3 * (start - t) / pre), app_w) * (a > 0)  # like cv2: the ring's colour is APPROACH * a, its mask a
+        cov = _ring(dh, r * (1 + 3 * (start - t) / pre), app_w, px) * (a > 0)  # like cv2: the ring's colour is APPROACH * a, its mask a
         layer = torch.lerp(layer, APPROACH * a.expand_as(layer), cov)
         mask = torch.maximum(mask, cov * a)
 
         # spinner: three thin rings in the middle
         sp_alpha = torch.where(ok, ((t - (start - 500)) / 500).clamp(0, 1) * torch.where(t > end, (1 - (t - end) / FADE_OUT).clamp(min=0), 1.0), 0.0)
         ds = torch.sqrt((gx - 256) ** 2 + (gy - 192) ** 2)
-        srings = sum(_ring(ds, rr, 1 / PX) for rr in SPIN_RADII).clamp(max=1)
+        srings = sum(_ring(ds, rr, 1 / PX, px) for rr in SPIN_RADII).clamp(max=1)
         layer = torch.where(spinner, SPIN * srings, layer)
         mask = torch.where(spinner, srings, mask)
         alpha = torch.where(spinner, sp_alpha, alpha)
@@ -281,12 +284,13 @@ if triton is not None:
         tl.store(out + b * W_ * H_ + pix, tl.clamp(acc, 0.0, 1.0), mask=inside)
 
 
-def draw_dots(img, dots):
-    """img (B, H, W), dots (B, 3): x, y in osu! pixels, radius in frame pixels -> img with a white dot at each."""
+def draw_dots(img, dots, origin=None, px=PX):
+    """img (B, h, w), dots (B, 3): x, y in osu! pixels, radius in image pixels -> img with a white dot at each.
+    origin (B, 2): each image's top-left in osu! px at px pixels per osu! pixel (a close-up); default the frame."""
     d = dots.view(-1, 3, 1, 1)
-    gx = X0 + (torch.arange(W, device=img.device) + 0.5) / PX
-    gy = (Y0 + (torch.arange(H, device=img.device) + 0.5) / PX).view(H, 1)
-    dist = torch.sqrt((gx - d[:, 0]) ** 2 + (gy - d[:, 1]) ** 2) * PX
+    h, w = img.shape[-2:]
+    gx, gy = _grid(img.device, origin, px, w, h)
+    dist = torch.sqrt((gx - d[:, 0]) ** 2 + (gy - d[:, 1]) ** 2) * px
     return torch.maximum(img, (d[:, 2] - dist + 0.5).clamp(0, 1))
 
 
@@ -294,11 +298,9 @@ def render_fast(p, dots=None, origin=None, px=PX, w=W, h=H):
     """render() as one fused kernel on CUDA, with draw_dots() folded in (falls back to the torch code elsewhere).
     origin (B, 2): osu! pixel at each frame's top-left, for a w x h view at px frame pixels per osu! pixel (CUDA only)."""
     dev = p["per"].device
-    if origin is not None:
-        assert triton is not None and dev.type == "cuda"
     if triton is None or dev.type != "cuda":
-        img = render(p)
-        return img if dots is None else draw_dots(img, dots)
+        img = render(p, origin, px, w, h)
+        return img if dots is None else draw_dots(img, dots, origin, px)
     b = p["per"].shape[0]
     out = torch.empty(b, h, w, device=dev)
     block = 256

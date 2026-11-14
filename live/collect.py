@@ -112,8 +112,10 @@ class Session:
         self.player = VisionPlayer(args.ckpt, args.click_th, args.min_hold, args.press, view=getattr(args, "view", None),
                                    view_style=getattr(args, "view_style", "input"),
                                    background=args.background)
-        self.player.lead_ms = getattr(args, "lead_ms", 0.0)
+        self.player.lead_ms = getattr(args, "lead_ms", 0.0) or 0.0
         self.player.hold_press = getattr(args, "hold_press", None)
+        self.player.rearm_drop = getattr(args, "rearm_drop", None)
+        self.player.smooth = getattr(args, "smooth", None)
         self.overlay_head = lambda: []  # -> first lines of the overlay text (live.improve: the round, what it does)
         self.say(f"session {self.dir}: model {args.ckpt}, click threshold {args.click_th}, min hold {args.min_hold}, press {args.press}")
 
@@ -362,6 +364,8 @@ def main():
     p.add_argument("--min-hold", type=int, default=MIN_HOLD)
     p.add_argument("--press", choices=["first", "after", "same"], default="first")
     p.add_argument("--lead-ms", type=float, default=0.0, help="ms added to the frame age the student is told (acts earlier)")
+    p.add_argument("--rearm-drop", type=float, default=None, help="click logit drop from its peak that re-arms the next click")
+    p.add_argument("--smooth", type=float, default=None, help="weight of the new move against the last (0.5: average)")
     p.add_argument("--hold-press", type=float, default=None,
                    help="press a key when none is down and the hold logit is over this (spinners); default off")
     p.add_argument("--no-record", dest="record", action="store_false", help="do not keep the frames")

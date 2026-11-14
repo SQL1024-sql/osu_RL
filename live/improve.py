@@ -80,6 +80,14 @@ def rec_gb(path):
     return total / 2 ** 30
 
 
+def has_fovea(rec):
+    """True if a recording kept close-ups around the cursor (live.vision_play, from 2026-11-14)."""
+    try:
+        return "fovea" in np.load(rec).files
+    except Exception:
+        return False
+
+
 def avail_ram_gb():
     """System memory free right now (GB)."""
     class MS(ctypes.Structure):
@@ -120,7 +128,7 @@ class Improver:
                                    max_gb=0, restart_fork_mb=6000, out=os.path.join(a.out, "plays"),
                                    background=not a.foreground, view=a.view or None, view_style=a.view_style,
                                    overlay=os.path.join(a.out, "overlay.txt"), lead_ms=a.lead_ms,
-                                   hold_press=a.hold_press)
+                                   hold_press=a.hold_press, rearm_drop=a.rearm_drop, smooth=a.smooth)
         self.session = Session(sargs)
         self.phase = "start"
         self.session.overlay_head = self.overlay_lines
@@ -181,21 +189,19 @@ class Improver:
         return rows
 
     def play_groups(self, groups):
-        """Several copies of the fork at once (--instances): groups[0] = (model, maps[, lead ms[, hold press]]) plays here, on the
-        first copy (the one on stream); each other group in a live.collect process of its own, on copy 1, 2, ... in
-        the background. -> one list of rows per group"""
+        """Several copies of the fork at once (--instances): groups[0] = (model, maps[, player options dict]) plays
+        here, on the first copy (the one on stream); each other group in a live.collect process of its own, on copy 1,
+        2, ... in the background. -> one list of rows per group"""
         workers = []
-        lead = lambda g: g[2] if len(g) > 2 else self.a.lead_ms
-        hp = lambda g: g[3] if len(g) > 3 else self.a.hold_press
         for i, g in enumerate(groups[1:], 1):
-            ckpt, maps = g[0], g[1]
+            ckpt, maps, o = g[0], g[1], self.play_opts(g)
             log_path = os.path.join(self.a.out, "workers", f"copy{i}-{time.strftime('%Y%m%d-%H%M%S')}.log")
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             cmd = [sys.executable, "-u", "-m", "live.collect", "--background", "--maps", *map(glob.escape, maps),
                    "--plays", str(len(maps)),
                    "--ckpt", ckpt, "--click-th", str(self.a.click_th), "--min-hold", str(self.a.min_hold),
-                   "--lead-ms", str(lead(g)), "--out", os.path.join(self.a.out, "plays")] \
-                + (["--hold-press", str(hp(g))] if hp(g) is not None else [])
+                   "--out", os.path.join(self.a.out, "plays")] \
+                + [x for k, v in o.items() if v is not None for x in ("--" + k.replace("_", "-"), str(v))]
             log = open(log_path, "w", encoding="utf-8")
             workers.append((subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT,
                                              env=dict(os.environ, OSU_RL_INSTANCE=str(i), PYTHONIOENCODING="utf-8")),
@@ -203,16 +209,27 @@ class Improver:
         ckpt, maps = groups[0][0], groups[0][1]
         if ckpt != self.session.args.ckpt:
             self.use(ckpt)
-        self.session.player.lead_ms, self.session.player.hold_press = lead(groups[0]), hp(groups[0])
+        for k, v in self.play_opts(groups[0]).items():
+            setattr(self.session.player, k, v)
         try:
             results = [self.play_maps(maps, len(maps))]
         finally:
-            self.session.player.lead_ms, self.session.player.hold_press = self.a.lead_ms, self.a.hold_press
+            for k, v in self.play_opts(()).items():
+                setattr(self.session.player, k, v)
         for proc, log, log_path in workers:
             proc.wait()
             log.close()
             results.append(self.worker_rows(log_path))
         return results
+
+    PLAY_OPTS = ("lead_ms", "hold_press", "rearm_drop", "smooth")
+
+    def play_opts(self, group):
+        """The player options for a group: the loop's (--lead-ms ...), overridden by a dict as the group's third item."""
+        o = {k: getattr(self.a, k) for k in self.PLAY_OPTS}
+        if len(group) > 2 and isinstance(group[2], dict):
+            o.update(group[2])
+        return o
 
     def close_extra_copies(self):
         """Closes the copies of the fork other than the first (the one on stream) while the candidate trains: each
@@ -316,11 +333,19 @@ class Improver:
                 break
         return out
 
+    def fovea(self):
+        """The close-up side candidates take: the current model's, or --fovea to start one (0: none)."""
+        import torch
+        import vision.student as S
+        return S.fovea_of(torch.load(self.state["current"], map_location="cpu")) or self.a.fovea
+
     def val_recs(self):
         """Held-out recordings that pick the candidate's weights: the newest gate plays of the model playing now, the
         states the student itself gets into on maps it never trains on (the old one, a teacher recording from
         2026-11-11, said nothing about how the student plays: its loss fell while gate scores dropped)."""
         recs = self.gate_recs(self.state["current"], labelled=True)
+        if self.fovea():
+            recs = [r for r in recs if has_fovea(r)]
         return recs if len(recs) >= 3 else [VAL_REC]
 
     def label(self, recs):
@@ -356,6 +381,8 @@ class Improver:
         cpu): as many as --ram-gb and the memory free now allow, half of them the newest, half drawn at random from
         the older ones (DAgger aggregates: training only on the last round's plays forgot what earlier ones taught)."""
         students = self.student_recs()
+        if self.fovea():  # a close-up model learns only from recordings that kept close-ups
+            students = [f for f in students if has_fovea(f)]
         free = avail_ram_gb()
         budget = min(self.a.ram_gb, free - self.a.ram_margin_gb) - sum(map(rec_gb, teacher + val))
         sizes = {f: rec_gb(f) for f in students[: self.a.max_recs * 3]}
@@ -387,7 +414,9 @@ class Improver:
         init = self.state["current"] if self.a.init == "current" else self.a.init
         cmd = [sys.executable, "-u", "-m", "live.finetune_real", *teacher, *students, "--val", *val, "--clicks", "map",
                "--init", init, "--updates", str(self.a.updates), "--lr", str(self.a.lr), "--frames", "cpu",
-               "--spin-frac", str(self.a.spin_frac), "--out", out] + (["--spin-rule"] if self.a.spin_rule else [])
+               "--spin-frac", str(self.a.spin_frac), "--aim-w", str(self.a.aim_w), "--aim-ms", str(self.a.aim_ms),
+               "--out", out] + (["--spin-rule"] if self.a.spin_rule else []) \
+            + (["--fovea", str(self.fovea())] if self.fovea() else [])
         self.say(f"retraining from {init} on {len(teacher)} teacher + {len(students)} student recordings, held out: "
                  f"{len(val)} gate plays of the model playing now -> {out}" if val != [VAL_REC] else
                  f"retraining from {init} on {len(teacher)} teacher + {len(students)} student recordings -> {out}")
@@ -422,7 +451,7 @@ class Improver:
             # its click and hold outputs lined up with the model playing now (live.calibrate), on the newest labelled
             # student recordings: without it the thresholds meant fewer clicks and every candidate lost (rounds 5-9)
             cal = os.path.join(out, "best_cal.pt")
-            recs = self.student_recs()[:6]
+            recs = [f for f in self.student_recs() if not self.fovea() or has_fovea(f)][:6]
             r = subprocess.run([sys.executable, "-m", "live.calibrate", best, "--ref", self.state["current"], "--recs", *recs,
                                 "--out", cal], capture_output=True, text=True)
             if r.returncode == 0 and os.path.exists(cal):
@@ -573,11 +602,15 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--rounds", type=int, default=0, help="0: until Ctrl+C")
     p.add_argument("--collect", type=int, default=12, help="training-map plays per round")
-    p.add_argument("--gate", type=int, default=2, help="plays of each gate map per model per round")
+    p.add_argument("--gate", type=int, default=2,
+                   help="plays of each gate map per model per round (with 4 copies, 2 is one batch: more gate maps "
+                        "rather than more repetitions of the same few)")
     p.add_argument("--margin", type=float, default=0.3,
                    help="accuracy points the candidate must be ahead by, paired (the same map in the same repetition)")
-    p.add_argument("--swap-t", type=float, default=1.0,
-                   help="... and paired mean / its standard error at least this (1.0: ahead with ~84%% confidence)")
+    p.add_argument("--swap-t", type=float, default=0.0,
+                   help="... and paired mean / its standard error at least this. 0: the margin alone (rounds 30-33 at "
+                        "1.0: +0.46, +0.72, -0.05, +0.19 with standard errors of 1.1-1.4, so a candidate needed over 1 "
+                        "point to take over; a candidate that only ties is beaten back by the next one)")
     p.add_argument("--updates", type=int, default=6000)
     p.add_argument("--lr", type=float, default=3e-5,
                    help="fine-tuning learning rate (2026-11-13, calibrated, vs r001 on the gate: 3e-5 x 6000 86.1%%, 3e-5 x 2000 "
@@ -591,6 +624,13 @@ def main():
     p.add_argument("--ram-margin-gb", type=float, default=6, help="system memory left free when picking them")
     p.add_argument("--spin-frac", type=float, default=0.1,
                    help="share of real training samples drawn from inside spinners (fine-tuning forgot how to spin)")
+    p.add_argument("--fovea", type=int, default=0,
+                   help="96: candidates also look at a sharp close-up around the cursor (student.FOVEA); the first one "
+                        "starts from the current model's weights. Needs recordings that kept close-ups")
+    p.add_argument("--aim-w", type=float, default=6.0,
+                   help="training: move-loss weight on steps within --aim-ms before an object's start (1: off). 2026-11-14 "
+                        "A/B against r001, paired over 16 tier-3 gate pairs: 1 +0.3, 3 +2.6, 6 +4.1 points (misses 64 -> 46 a play)")
+    p.add_argument("--aim-ms", type=float, default=60.0)
     p.add_argument("--no-spin-rule", dest="spin_rule", action="store_false",
                    help="train spinner moves on the teacher's (they average to no spinning) instead of live.finetune_real.spin_moves")
     p.add_argument("--val-recs", type=int, default=8,
@@ -598,6 +638,12 @@ def main():
     p.add_argument("--hold-press", type=float, default=8.0,
                    help="press a key when none is down and the hold logit is over this (spinners need it: their click is "
                         "missed after a slider); 2026-11-14 gate: r001 83.95%% without, 83.96%% with")
+    p.add_argument("--rearm-drop", type=float, default=None,
+                   help="click logit drop from its peak that allows the next click while still over the threshold. "
+                        "2026-11-14 A/B at 1.0: the same number of clicks (the logit does not dip between stream notes)")
+    p.add_argument("--smooth", type=float, default=0.5,
+                   help="weight of each new move against the last one (0.5 averages them). 2026-11-14 A/B: direction "
+                        "reversals 37%% -> 8%% of moving steps, accuracy -0.3 +- 1.2 points (no measurable cost)")
     p.add_argument("--lead-ms", type=float, default=0.0,
                    help="ms added to the frame age the student is told (it acts that much earlier)")
     p.add_argument("--vram-margin-gb", type=float, default=0.8,

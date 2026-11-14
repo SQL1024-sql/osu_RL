@@ -29,7 +29,7 @@ def logits(model, tracks, n_batches, size, seed=12345):
         for _ in range(n_batches):
             img, aux, _ = tracks.batch(size, gen)
             with S.autocast(tracks.dev):
-                kl = model(img, aux)[1].float()
+                kl = S.apply_model(model, img, tracks.last_crop, aux)[1].float()
             cs.append(kl[:, 0].cpu().numpy())
             hs.append(kl[:, 1].cpu().numpy())
     return np.concatenate(cs), np.concatenate(hs)
@@ -38,13 +38,11 @@ def logits(model, tracks, n_batches, size, seed=12345):
 def calibrate(cand, ref, recs, out, n_batches=40, size=512):
     """-> (click shift, hold shift) added to cand's biases, written to out."""
     dev = "cuda" if torch.cuda.is_available() else "cpu"
-    tracks = RealTracks(recs, map_index(MAP_GLOBS), dev, clicks="map")
-    found = {}
-    for name, path in (("ref", ref), ("cand", cand)):
-        model = S.Student().to(dev).to(memory_format=torch.channels_last)
-        model.load_state_dict(torch.load(path, map_location=dev))
-        model.eval()
-        found[name] = logits(model, tracks, n_batches, size)
+    models = {name: S.make_model(path, dev) for name, path in (("ref", ref), ("cand", cand))}
+    # the same frames for both; with close-ups when either takes them (only recordings that kept close-ups then)
+    fovea = max(m.fovea_side or 0 for m in models.values())
+    tracks = RealTracks(recs, map_index(MAP_GLOBS), dev, clicks="map", frames_dev="cpu", fovea=fovea)
+    found = {name: logits(m, tracks, n_batches, size) for name, m in models.items()}
     (rc, rh), (cc, ch) = found["ref"], found["cand"]
     pc, ph = (rc > CLICK_TH).mean(), (rh > 0).mean()
     dc = float(CLICK_TH - np.quantile(cc, 1 - pc))

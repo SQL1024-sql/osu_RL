@@ -40,6 +40,26 @@ MIN_HOLD = 5  # Exp 031: steps a clicked key stays held (student.MIN_HOLD); 030 
 COLS = "wall game x y mx my click hold fire buttons lat newest".split()
 
 
+FOV_SIDE = 96  # close-up side in pixels (student.FOVEA for a model that takes one)
+FOV_SPAN = FOV_SIDE / S.FOVEA_PX  # osu! pixels it covers (128 at 0.75 px per osu! pixel: 3x the frame's sharpness)
+
+
+def fovea_crop(gray, cursor):
+    """The close-up around the cursor from a full-resolution grey capture of the frame region (which spans W/PX x
+    H/PX osu! pixels from X0, Y0): FOV_SIDE x FOV_SIDE uint8 centred on cursor (osu! px), black outside the capture.
+    -> (crop, its top-left in osu! px)."""
+    scale = gray.shape[1] / (W / PX)  # capture pixels per osu! pixel
+    origin = np.asarray(cursor, np.float64) - FOV_SPAN / 2
+    x0, y0 = int(round((origin[0] - X0) * scale)), int(round((origin[1] - Y0) * scale))
+    side = max(2, int(round(FOV_SPAN * scale)))
+    hh, ww = gray.shape
+    out = np.zeros((side, side), np.uint8)
+    sx0, sy0, sx1, sy1 = max(0, x0), max(0, y0), min(ww, x0 + side), min(hh, y0 + side)
+    if sx1 > sx0 and sy1 > sy0:
+        out[sy0 - y0:sy1 - y0, sx0 - x0:sx1 - x0] = gray[sy0:sy1, sx0:sx1]
+    return cv2.resize(out, (FOV_SIDE, FOV_SIDE), interpolation=cv2.INTER_AREA), origin.astype(np.float32)
+
+
 def user32_metrics():
     m = ctypes.WinDLL("user32").GetSystemMetrics
     return m(0), m(1)
@@ -51,7 +71,8 @@ class Capture(threading.Thread):
     def __init__(self, box, keep=64):
         super().__init__(daemon=True)
         self.box, self.ring, self.stop = box, deque(maxlen=keep), False
-        self.keep_all = None  # a list while recording: every (capture time, frame)
+        self.keep_all = None  # a list while recording: every (capture time, frame, close-up, its origin)
+        self.cursor = None  # the student's cursor (osu! px), set by the player: each frame keeps a close-up around it
 
     def run(self):
         with mss.MSS() as sct:
@@ -59,17 +80,23 @@ class Capture(threading.Thread):
                 t0 = time.perf_counter()
                 img = np.asarray(sct.grab(self.box))
                 t1 = time.perf_counter()
-                g = cv2.resize(cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY), (W, H), interpolation=cv2.INTER_AREA)
-                self.ring.append(((t0 + t1) / 2, g))
+                full = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+                g = cv2.resize(full, (W, H), interpolation=cv2.INTER_AREA)
+                self.ring.append(((t0 + t1) / 2, g, *(fovea_crop(full, self.cursor) if self.cursor is not None else (None, None))))
                 if self.keep_all is not None:
                     self.keep_all.append(self.ring[-1])
 
-    def frames(self, times):
-        """The latest frame captured at or before each time (oldest kept if none)."""
+    def frames(self, times, fovea=False):
+        """The latest frame captured at or before each time (oldest kept if none). fovea: also their close-ups and
+        the close-ups' origins (osu! px) -> (frames, times[, crops, origins])"""
         ring = list(self.ring)
         ts = np.array([r[0] for r in ring])
         k = np.clip(np.searchsorted(ts, times, side="right") - 1, 0, len(ring) - 1)
-        return np.stack([ring[i][1] for i in k]), ts[k]
+        if not fovea:
+            return np.stack([ring[i][1] for i in k]), ts[k]
+        crops = [ring[i][2] if ring[i][2] is not None else np.zeros((FOV_SIDE, FOV_SIDE), np.uint8) for i in k]
+        origins = [ring[i][3] if ring[i][3] is not None else np.zeros(2, np.float32) for i in k]
+        return np.stack([ring[i][1] for i in k]), ts[k], np.stack(crops), np.stack(origins)
 
     def fps(self):
         ts = [r[0] for r in list(self.ring)]
@@ -86,7 +113,7 @@ class WindowCapture:
         ctypes.windll.user32.GetWindowRect(ctypes.c_void_p(hwnd), r)
         x, y = box["left"] - r[0], box["top"] - r[1]  # the frame is the window, from its top left corner
         self.crop = (y, y + box["height"], x, x + box["width"])
-        self.box, self.ring, self.stop, self.keep_all = box, deque(maxlen=keep), False, None
+        self.box, self.ring, self.stop, self.keep_all, self.cursor = box, deque(maxlen=keep), False, None, None
         self._wgc = WindowsCapture(cursor_capture=False, draw_border=False, window_hwnd=hwnd, minimum_update_interval=1)
 
         @self._wgc.event
@@ -99,8 +126,9 @@ class WindowCapture:
             img = frame.frame_buffer[max(0, y0):y1, max(0, x0):x1]
             if img.shape[0] < 2 or img.shape[1] < 2:
                 return
-            g = cv2.resize(cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY), (W, H), interpolation=cv2.INTER_AREA)
-            self.ring.append((t, g))
+            full = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+            g = cv2.resize(full, (W, H), interpolation=cv2.INTER_AREA)
+            self.ring.append((t, g, *(fovea_crop(full, self.cursor) if self.cursor is not None else (None, None))))
             if self.keep_all is not None:
                 self.keep_all.append(self.ring[-1])
 
@@ -136,20 +164,29 @@ class VisionPlayer:
         # 6.5 ms late on median, 2026-11-14); live.improve and live.collect set it with --lead-ms
         self.lead_ms = 0.0
         self.hold_press = None  # hold logit over which a key is pressed when none is down (None: off)
+        self.rearm_drop = None  # click logit drop from its peak that allows the next click while still over the threshold
+        self.smooth = None  # weight of the new move against the last one (None: off; 0.5 averages the two)
         self.dev = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = S.Student().to(self.dev).to(memory_format=torch.channels_last)
-        self.model.load_state_dict(torch.load(ckpt, map_location=self.dev))
-        self.model.eval()
-        with torch.no_grad(), S.autocast(self.dev):  # warm up (the first CUDA calls are slow)
-            self.model(torch.zeros(1, S.N_FRAMES, H, W, device=self.dev), torch.zeros(1, S.AUX, device=self.dev))
+        self.model = S.make_model(ckpt, self.dev)  # with a close-up branch if the checkpoint has one
+        self._warm_up()
         self.view_port, self.view_raw, self.view, self.view_style = view, view_raw, None, view_style
         self.field = self.cap = self.tablet = self.box = None
         self._pt = (ctypes.c_long * 2)()
 
+    def _warm_up(self):
+        with torch.no_grad(), S.autocast(self.dev):  # the first CUDA calls are slow
+            S.apply_model(self.model, torch.zeros(1, S.N_FRAMES, H, W, device=self.dev),
+                          torch.zeros(1, S.N_FRAMES, FOV_SIDE, FOV_SIDE, device=self.dev), torch.zeros(1, S.AUX, device=self.dev))
+
     def load(self, ckpt):
-        """Play with other weights from now on (same network)."""
-        self.model.load_state_dict(torch.load(ckpt, map_location=self.dev))
-        self.model.eval()
+        """Play with other weights from now on (the network is rebuilt if it has, or lacks, a close-up branch)."""
+        sd = torch.load(ckpt, map_location=self.dev)
+        if S.fovea_of(sd) != (self.model.fovea_side or 0):
+            self.model = S.make_model(sd, self.dev)
+            self._warm_up()
+        else:
+            self.model.load_state_dict(sd)
+            self.model.eval()
         self.ckpt = ckpt
 
     def attach(self, bench=False, wait=True):
@@ -209,6 +246,7 @@ class VisionPlayer:
         hist = deque([(time.perf_counter(), cur.copy())], maxlen=16)  # (wall, osu! px) where the cursor was
         held, last, clicked = np.zeros(2, bool), 0, False
         prev, fired, last_fire, step = -np.inf, False, -10 ** 9, 0
+        peak, m_prev = -np.inf, np.zeros(2)
         t_wait = nxt = time.perf_counter()
         try:
             while True:
@@ -234,23 +272,35 @@ class VisionPlayer:
                         cap.keep_all = []
                     hist.clear()
                     hist.append((time.perf_counter(), cur.copy()))
+                    cap.cursor = cur.copy()  # each captured frame keeps a close-up around it
                 now = time.perf_counter()
                 if self.dry_run:  # the cursor is whoever else moves it
                     cur = self.os_cursor()
                     hist.append((now, cur.copy()))
+                    cap.cursor = cur.copy()
                 # frames: the newest, and the ones FRAME_STEPS steps before it
                 newest = cap.ring[-1][0]
-                imgs, shown = cap.frames(newest - np.array(S.FRAME_STEPS) * dt)
+                fov = self.model.fovea is not None
+                got = cap.frames(newest - np.array(S.FRAME_STEPS) * dt, fovea=fov)
+                imgs, shown = got[0], got[1]
                 lat_ms = float(np.clip((now - newest) * 1000 + self.lead_ms, 0, S.MAX_LAT))
                 hs_t = np.array([h[0] for h in hist])
                 dots = np.array([hist[int(np.clip(np.searchsorted(hs_t, s, side="right") - 1, 0, len(hist) - 1))][1] for s in shown])
                 img = torch.tensor(imgs, device=dev).float().div_(255).view(S.N_FRAMES, H, W)
                 d = torch.tensor(np.c_[dots, np.full(S.N_FRAMES, 2.2)], dtype=torch.float32, device=dev)
                 img = draw_dots(img, d).view(1, S.N_FRAMES, H, W)
+                crop = None
+                if fov:  # the close-ups those frames kept, the cursor drawn in at the same places, 3x the size
+                    crop = torch.tensor(got[2], device=dev).float().div_(255)
+                    db = torch.tensor(np.c_[dots, np.full(S.N_FRAMES, 2.2 * S.FOVEA_PX / PX)], dtype=torch.float32, device=dev)
+                    crop = draw_dots(crop, db, torch.tensor(got[3], device=dev), S.FOVEA_PX).view(1, S.N_FRAMES, FOV_SIDE, FOV_SIDE)
                 aux = torch.tensor([[cur[0] / 512, cur[1] / 384, lat_ms / S.MAX_LAT]], dtype=torch.float32, device=dev)
                 with torch.no_grad(), S.autocast(dev):
-                    m, kl = model(img, aux)
+                    m, kl = S.apply_model(model, img, crop, aux)
                 m, (c, h) = m.float().cpu().numpy()[0], kl.float().cpu().numpy()[0]
+                if self.smooth is not None:  # the move averaged with the last one: damps the step-to-step zigzag
+                    m = self.smooth * m + (1 - self.smooth) * m_prev
+                m_prev = m
                 # keys exactly as student.rollouts: one click per peak of the click logit above the threshold
                 fire = prev > S.CLICK_TH and c < prev and not fired and step - last_fire >= S.CLICK_GAP
                 # no key down while the hold logit is sure a key should be (hold_press): press one. A spinner right after
@@ -262,6 +312,14 @@ class VisionPlayer:
                     fire = True
                 if fire:
                     last_fire = step
+                if fire:
+                    peak = prev
+                elif fired and self.rearm_drop is not None:
+                    # re-armed once the logit falls rearm_drop below its peak: in a stream it can stay over the
+                    # threshold between notes, and one click went to two objects (13 misses a play, 2026-11-14)
+                    peak = max(peak, c)
+                    if c < peak - self.rearm_drop:
+                        fired = False
                 fired = (fired or fire) and c > S.CLICK_TH
                 prev = c
                 act, last, clicked = S.keys_for(fire, h > 0 or step - last_fire <= S.MIN_HOLD, held, last, clicked)
@@ -282,6 +340,7 @@ class VisionPlayer:
                         elif not on_lost_focus():
                             break
                     hist.append((time.perf_counter(), cur.copy()))
+                    cap.cursor = cur.copy()
                 game = (now - clock.model[0]) * 1000 if clock is not None and clock.model is not None else np.nan
                 if self.view and self.view.want():  # the newest input frame, copied only as often as it is shown
                     self.view.put(img[0, 0].mul(255).byte().cpu().numpy(), cur, m, held, fire, game)
@@ -317,8 +376,13 @@ class VisionPlayer:
         icept = float(np.median(arr[ok, 0] - arr[ok, 1] / 1000))
         ct = np.array([f[0] for f in frames])
         rec = out[:-4] + "-rec.npz"
+        fov = {}
+        if all(len(f) > 3 and f[2] is not None for f in frames):  # close-ups around the cursor (live.vision_play.fovea_crop)
+            fov = dict(fovea=np.stack([f[2] for f in frames]), fovea_origin=np.stack([f[3] for f in frames]),
+                       fovea_px=S.FOVEA_PX)
         np.savez_compressed(rec, frames=np.stack([f[1] for f in frames]), game_ms=(ct - icept) * 1000, md5=str(md5),
-                            box=np.array([self.box["left"], self.box["top"], self.box["width"], self.box["height"]]), play=out)
+                            box=np.array([self.box["left"], self.box["top"], self.box["width"], self.box["height"]]), play=out,
+                            **fov)
         return rec
 
     def close(self):

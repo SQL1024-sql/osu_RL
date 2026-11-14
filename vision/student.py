@@ -47,6 +47,9 @@ CLICK_GAP = 0  # steps a click must wait after the last one (a logit that dips b
 # steps after a click that its key stays held whatever the hold logit says (Exp 031): the hold logit only rises once
 # the frames show the slider started, a few steps after its head was clicked, and a key let go is never pressed again
 MIN_HOLD = 0
+# live.vision_play's play options, mirrored in rollouts so a simulated play goes where a live one would (live.sim_dagger)
+SMOOTH = None  # weight of each new move against the last one
+HOLD_PRESS = None  # hold logit over which a key is pressed when none is down
 AUX = 3  # cursor x, y, latency (the last move or held keys as inputs get copied: the student keeps doing what it did)
 
 _scenes = {}
@@ -94,8 +97,9 @@ def build(maps, map_ids, times, dots, aux, rng=None):
         img = augment(img, rng)
     if not FOVEA:
         return img, aux
-    # the same 4 moments up close, all centred where the cursor is in the newest frame (a still circle stays put)
-    origin = (dots[:, :1, :2] - FOVEA / 2 / FOVEA_PX).expand(-1, N_FRAMES, -1).reshape(-1, 2)
+    # the same 4 moments up close, each centred where the cursor was in that frame: how live.vision_play captures them
+    # (a close-up is cut around the cursor as each frame arrives), so real and rendered close-ups match
+    origin = (dots[..., :2] - FOVEA / 2 / FOVEA_PX).reshape(-1, 2)
     big = torch.cat([dots[..., :2], dots[..., 2:] * FOVEA_PX / PX], 2).reshape(-1, 3)
     crop = render_fast(p, big, origin, FOVEA_PX, FOVEA, FOVEA).view(-1, N_FRAMES, FOVEA, FOVEA)
     if rng is not None:
@@ -258,8 +262,11 @@ def augment(x, rng):
 
 
 class Student(nn.Module):
-    def __init__(self, where=False):
+    def __init__(self, where=False, fovea=None):
+        """fovea: side of the close-up it also looks at (0: none; None: the module's FOVEA)."""
         super().__init__()
+        fovea = FOVEA if fovea is None else fovea
+        self.fovea_side = fovea
         self.conv = nn.Sequential(
             nn.Conv2d(N_FRAMES, 32, 5, 2, 2), nn.ReLU(),
             nn.Conv2d(32, 64, 3, 2, 1), nn.ReLU(),
@@ -268,14 +275,14 @@ class Student(nn.Module):
         )
         self.fovea = None
         extra = 0
-        if FOVEA:
+        if fovea:
             self.fovea = nn.Sequential(
                 nn.Conv2d(N_FRAMES, 32, 5, 2, 2), nn.ReLU(),
                 nn.Conv2d(32, 64, 3, 2, 1), nn.ReLU(),
                 nn.Conv2d(64, 64, 3, 2, 1), nn.ReLU(),
                 nn.Conv2d(64, 64, 3, 2, 1), nn.ReLU(),
             )
-            extra = 64 * ((FOVEA + 15) // 16) ** 2
+            extra = 64 * ((fovea + 15) // 16) ** 2
         self.head = nn.Sequential(nn.Linear(128 * 8 * 10 + extra + AUX, 256), nn.ReLU(), nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, 4))
         # training only: predict the next object's x, y and time to hit, so the CNN has to find it on screen
         self.where = nn.Linear(256, 3) if where else None
@@ -290,6 +297,49 @@ class Student(nn.Module):
         if self.training and self.where is not None:
             return torch.tanh(out[:, :2]), out[:, 2:], self.where(h)
         return torch.tanh(out[:, :2]), out[:, 2:]  # move in [-1, 1], logits of (click, hold)
+
+
+CONV_FEATURES = 128 * 8 * 10
+
+
+def fovea_of(sd):
+    """The close-up side a checkpoint's network takes (0: none), from its weights."""
+    if not any(k.startswith("fovea.") for k in sd):
+        return 0
+    extra = sd["head.0.weight"].shape[1] - CONV_FEATURES - AUX
+    side = int(round((extra / 64) ** 0.5)) * 16
+    return side if 64 * ((side + 15) // 16) ** 2 == extra else 96
+
+
+def make_model(ckpt, device):
+    """The student network a checkpoint (path or state dict) needs, with its weights, on device, in eval mode."""
+    sd = torch.load(ckpt, map_location=device) if isinstance(ckpt, str) else ckpt
+    model = Student(fovea=fovea_of(sd)).to(device).to(memory_format=torch.channels_last)
+    model.load_state_dict(sd)
+    return model.eval()
+
+
+def warm_start_fovea(sd, side=96):
+    """A state dict for the network with a close-up of this side, from one without: every weight it had is kept, the
+    close-up branch is new, and its inputs to the first head layer start at 0, so the new network plays exactly as the
+    old one did until training teaches it to use the close-up."""
+    assert not fovea_of(sd), "already has a close-up"
+    new = Student(fovea=side).state_dict()
+    extra = new["head.0.weight"].shape[1] - CONV_FEATURES - AUX
+    out = {k: (v.clone() if k in sd and sd[k].shape == v.shape else v.clone()) for k, v in new.items()}
+    for k, v in sd.items():
+        if k in out and out[k].shape == v.shape:
+            out[k] = v.clone()
+    w = torch.zeros_like(new["head.0.weight"])
+    w[:, :CONV_FEATURES] = sd["head.0.weight"][:, :CONV_FEATURES]
+    w[:, CONV_FEATURES + extra:] = sd["head.0.weight"][:, CONV_FEATURES:]
+    out["head.0.weight"] = w
+    return out
+
+
+def apply_model(model, img, crop, aux):
+    """model(img[, crop], aux): the close-up only for a network that takes one."""
+    return model(img, crop, aux) if model.fovea is not None else model(img, aux)
 
 
 def keys_for(click, hold, held, last, clicked):
@@ -369,6 +419,7 @@ def rollouts(jobs, student, drive, procs, maps):
     last, clicked = [0] * len(jobs), [False] * len(jobs)
     prev, fired = [-np.inf] * len(jobs), [False] * len(jobs)
     last_fire = [-10 ** 9] * len(jobs)
+    m_prev = [np.zeros(2, np.float32) for _ in jobs]
     ctx = get_context("fork" if hasattr(os, "fork") else "spawn")
     conns, workers = [], []
     for w in range(procs):
@@ -405,12 +456,21 @@ def rollouts(jobs, student, drive, procs, maps):
                      for n in drv]
             with torch.no_grad(), autocast(device):
                 m, kl = student(*build(maps, *live_inputs(maps, items)))
-            actions[drv, :2] = m.float().cpu().numpy()
+            moves = m.float().cpu().numpy()
+            if SMOOTH is not None:
+                for q, n in enumerate(drv):
+                    jid = batch[n][2]
+                    moves[q] = SMOOTH * moves[q] + (1 - SMOOTH) * m_prev[jid]
+                    m_prev[jid] = moves[q]
+            actions[drv, :2] = moves
             for n, (c, h) in zip(drv, kl.float().cpu().numpy()):
                 jid = batch[n][2]
                 # click once per stretch of click logit > 0, on the step after its peak: clicking as soon as it
                 # crosses 0 lands 2-3 steps early, since the logit rises over several steps before the click
                 fire = prev[jid] > CLICK_TH and c < prev[jid] and not fired[jid] and steps[jid] - last_fire[jid] >= CLICK_GAP
+                if not fire and HOLD_PRESS is not None and h > HOLD_PRESS and not (np.asarray(batch[n][6]) > 0.5).any() \
+                        and steps[jid] - last_fire[jid] >= CLICK_GAP:
+                    fire = True
                 if fire:
                     last_fire[jid] = steps[jid]
                 fired[jid] = (fired[jid] or fire) and c > CLICK_TH
