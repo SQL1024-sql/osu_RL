@@ -82,12 +82,14 @@ class NeuroRenderer(R.Renderer):
         self.blend(out, alpha, draw)
 
     def view(self, t, cursor, size):
-        """(H, W) map frame at t ms with the cursor -> the blurred low-resolution look at size (w, h), uint8 grey."""
+        """(H, W) map frame at t ms -> the blurred low-resolution look at size (w, h), uint8 grey. cursor (osu! px)
+        is drawn as a grey dot; None: no cursor (the stream's corner shows only the map)."""
         f = self.frame(t).astype(np.float32) / 255
-        c = tuple(R.px(cursor).astype(np.int32))
-        cur = np.zeros((H, W), np.float32)
-        cv2.circle(cur, c, int(self.r * PX * R.SUB * 0.45), 1.0, -1, cv2.LINE_AA, 4)
-        f = f * (1 - cur) + self.CURSOR * cur
+        if cursor is not None:
+            c = tuple(R.px(cursor).astype(np.int32))
+            cur = np.zeros((H, W), np.float32)
+            cv2.circle(cur, c, int(self.r * PX * R.SUB * 0.45), 1.0, -1, cv2.LINE_AA, 4)
+            f = f * (1 - cur) + self.CURSOR * cur
         low = cv2.resize(f, (W // 2, H // 2), interpolation=cv2.INTER_AREA)  # 80 x 60, Neuro's input size
         big = cv2.resize(low, size, interpolation=cv2.INTER_CUBIC)
         k = (size[0] // 50) | 1
@@ -98,11 +100,13 @@ class NeuroRenderer(R.Renderer):
 class View:
     """Serves the student's view as MJPEG. Call want() / put() from the play loop; everything else runs on its own threads.
     style "input": the frames the model got, sharp pixels, with a HUD of its move, clicks and keys; "neuro": the map drawn
-    plain and blurred from the game state (NeuroRenderer; set_map() before each map, put() with the gameplay time)."""
+    plain and blurred from the game state (NeuroRenderer; set_map() before each map, put() with the gameplay time),
+    with no cursor unless show_cursor, as PNG with the brightness as alpha, so the game shows through its black."""
 
-    def __init__(self, port=8770, scale=4, hud=True, fps=60, idle=None, host="127.0.0.1", style="input"):
+    def __init__(self, port=8770, scale=4, hud=True, fps=60, idle=None, host="127.0.0.1", style="input", show_cursor=False):
         self.scale, self.hud, self.dt = scale, hud, 1 / fps
-        self.style, self.neuro = style, None
+        self.style, self.neuro, self.show_cursor = style, None, show_cursor
+        self.mime = "image/png" if style == "neuro" else "image/jpeg"
         if style == "neuro":
             idle = None  # between maps: nothing (the page is transparent then)
         self.idle = idle            # () -> newest raw (H, W) uint8 frame, shown while the student is not deciding
@@ -125,7 +129,7 @@ class View:
                     with view.cond:
                         view.cond.wait_for(lambda: view.jpeg is not None, timeout=2)
                         data = view.jpeg
-                    self._send(200, "image/jpeg", data or b"")
+                    self._send(200, view.mime, data or b"")
                 elif path == "/stream":
                     self.send_response(200)
                     self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
@@ -139,7 +143,7 @@ class View:
                                 seen, data = view.seq, view.jpeg
                             if data is None:
                                 continue
-                            self.wfile.write(b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n" % len(data))
+                            self.wfile.write(b"--frame\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n" % (view.mime.encode(), len(data)))
                             self.wfile.write(data)
                             self.wfile.write(b"\r\n")
                     except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
@@ -192,8 +196,8 @@ class View:
                 if self.style == "neuro":
                     if self.neuro is not None and game_ms is not None and np.isfinite(game_ms):
                         t = game_ms + (now - self.t_state) * 1000  # between decisions the map moves on smoothly
-                        grey = self.neuro.view(t, cursor, (W * self.scale, H * self.scale))
-                        img = cv2.cvtColor(grey, cv2.COLOR_GRAY2BGR)
+                        grey = self.neuro.view(t, cursor if self.show_cursor else None, (W * self.scale, H * self.scale))
+                        img = np.dstack([np.full_like(grey, 255)] * 3 + [grey])  # white, as opaque as it is bright
                 else:
                     img = self.draw(frame, cursor, move, held, ring=now - self.last_fire < 0.12)
                 self.taken = True
@@ -205,7 +209,10 @@ class View:
                 if raw is not None:
                     img = self.upscale(raw)
             if img is not None:
-                ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 92])
+                if img.shape[2] == 4:
+                    ok, buf = cv2.imencode(".png", img, [cv2.IMWRITE_PNG_COMPRESSION, 1])
+                else:
+                    ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 92])
                 if ok:
                     with self.cond:
                         self.jpeg, self.seq = buf.tobytes(), self.seq + 1

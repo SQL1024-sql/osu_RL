@@ -1,7 +1,9 @@
 """Sets OBS up for the stream over obs-websocket (built into OBS 28+, Tools -> WebSocket Server Settings): a scene
-"osu_rl" with the fork's window, the student's view (live.vision_view) in a corner, and the improve loop's overlay text.
+"osu_rl" with the fork's window and the student's view (live.vision_view) in a corner; with --text, also the loop's
+status text in the top left.
 
     python -m live.obs_setup              # create what is missing (existing sources are left as they are)
+    python -m live.obs_setup --text       # also the status text (off by default: the stream shows none)
     python -m live.obs_setup --switch     # also make it the program scene (never while streaming or recording)
     python -m live.obs_setup --password X # if the WebSocket server asks for one
 
@@ -57,7 +59,7 @@ async def main(a):
     global OVERLAY
     if a.stream:  # live.stream (the stream machine only plays) writes its own overlay
         OVERLAY = os.path.abspath("runs/stream/overlay.txt")
-    if not os.path.exists(OVERLAY):  # the text source reads it; the loop rewrites it as it plays
+    if a.text and not os.path.exists(OVERLAY):  # the text source reads it; the loop rewrites it as it plays
         os.makedirs(os.path.dirname(OVERLAY), exist_ok=True)
         open(OVERLAY, "w", encoding="utf-8").write("osu_rl 準備中\n")
     async with aiohttp.ClientSession() as s:
@@ -93,7 +95,9 @@ async def main(a):
         vh = vw * 3 // 4
         await add(VIEW, "browser_source", dict(url="http://127.0.0.1:8770/", width=640, height=480, shutdown=False),
                   dict(positionX=W - vw - W // 64, positionY=H - vh - W // 64, scaleX=vw / 640, scaleY=vh / 480))
-        if text_kind:
+        if not a.text:
+            pass
+        elif text_kind:
             await add(TEXT, text_kind,
                       dict(read_from_file=True, file=OVERLAY, font=dict(face="Microsoft JhengHei", size=H // 24, style="Bold", flags=1),
                            outline=True, outline_size=4, outline_color=0xFF000000, color=0xFFFFFFFF),
@@ -115,5 +119,6 @@ if __name__ == "__main__":
     p.add_argument("--port", type=int, default=4455)
     p.add_argument("--password")
     p.add_argument("--switch", action="store_true")
-    p.add_argument("--stream", action="store_true", help="the status text of live.stream instead of live.improve")
+    p.add_argument("--text", action="store_true", help="also add the status text in the top left")
+    p.add_argument("--stream", action="store_true", help="with --text: the status text of live.stream instead of live.improve")
     asyncio.run(main(p.parse_args()))
