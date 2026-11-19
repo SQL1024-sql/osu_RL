@@ -1,0 +1,8 @@
+{
+ "model": "the stream's student from 2026-11-18 17:46 (runs/stream/models/20261118-174600-cycle6.pt)",
+ "trained_as": "runs\\cycle\\c006\\train2\\last_cal.pt",
+ "replaced": "runs\\cycle\\c002\\train2\\best_cal.pt",
+ "gate": "+0.82 +- 0.40, 8/10 maps (runs\\ablate\\20261118-165259)",
+ "promoted": "20261118-174600",
+ "check": "2026-11-19 in fork 9 over the bridge, DISCO PRINCE [Normal]: 88.3% (16 misses, slider ticks 67/90); r033_aim6 82.7%, r005 81.6% on the same map"
+}
