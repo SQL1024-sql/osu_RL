@@ -1,130 +1,76 @@
-# AI 玩家（接 osu! 私人伺服器的 lazer 多人房）
+# AI 玩家（osu! 私人伺服器上的 lazer：多人房、點播、直播）
 
-> **2026-11-17 起只用 vision 打。** AI 上場一律是 vision 學生（`live.vision_play.VisionPlayer`，跟 `live.stream` 打的是同一個模型），只看遊戲畫面決定每一步的移動和按鍵，不讀譜面。讀 .osu 算動作的 state 模型不再上場：
-> - 多人房、手動開的譜：`live.room_play`，擷取螢幕，用 VMulti 繪圖板打；也能自己列房間、進房、按準備、離開（見「坐在房間裡打」）。
-> - 點播、學生的譜：`live.requests` / `live.stream`，擷取 fork 視窗（被蓋住也可以），動作經 bridge 送進去。
-> - 下面「一場怎麼跑」到「手感」講的協定打法（`live.service`）沒有畫面、只能用 state 模型，所以停用了，`python -m live.service` 會直接拒絕。`live.humanize` 的手感是加在 state 模型動作上的，也不再有作用。
-> - fork 的 bridge `setup` 要帶 `"background": false`（三支程式都會帶）：學生是在沒有背景圖的譜上學的，譜面自己的背景就算 100% dim 也會透出來，那時 DISCO★PRINCE 只打 5%；蓋黑之後 81.6%（r005）、82.7%（r033）。
-
-AI 用一個普通帳號，以 lazer 客戶端的協定連上 [Illyaverse](https://github.com/Illyavrs/Illyaverse)（或任何相容的 lazer 伺服器），跟真人在同一個多人房裡打。不用改伺服器，也不用模擬滑鼠鍵盤。
+AI 是 vision 學生（`live.vision_play.VisionPlayer`）：只看遊戲畫面，自己決定每一步怎麼移動、什麼時候按鍵，不讀譜面。它坐在直播機上一個我們自己 build 的 lazer（fork，`../ppy-osu` 的 `feature/rl-bot`）前面。那個 fork 連 osu! 私人伺服器（例如 [Illyaverse](https://github.com/Illyavrs/Illyaverse)），登入 AI 自己的帳號，跟真人在同一個多人房裡打。OBS 直接擷取 fork 的視窗。
 
 ```
-Discord 機器人 (TS) --tool call--> live/service.py (HTTP) --> live/player.py --SignalR / REST--> osu! 伺服器 <-- 玩家的 lazer
-                                                          \-> live/prepare.py: 模擬器打譜 + headless lazer 算分
+Miyoria（Discord）--HTTP 8767--> live.room_play --VMulti 繪圖板--> fork 視窗 <-- OBS
+                  --HTTP 8766--> live.stream --requests / live.requests --bridge--> 同一個 fork 視窗
 ```
 
-## 一場怎麼跑
+- **多人房、手動開的譜**：`live.room_play` 擷取螢幕，用 VMulti 繪圖板打。它也能自己列房間、進房、按準備、離開（見「坐在房間裡打」）。成績由 fork 自己送給伺服器，跟真人一樣。
+- **點播、學生自己的譜**：`live.stream --requests` 或 `live.requests` 擷取 fork 視窗（被別的視窗蓋住也可以），動作經 bridge 送進遊戲。這些譜的成績不會送出。
+- **用哪個模型**：`live.stream` 現在打的那個（`runs/stream/state.json`）。還沒有這個檔的機器（剛 clone 的）用 `results/experiments/031-cycle6/seed0/best.pt`（cycle 6，旁邊的 `best.pt.aim.json` 是它的瞄準偏移）。2026-11-19 實打 DISCO★PRINCE Normal 88.3%（16 miss）。
+- 三支程式都會用 fork bridge 的 `setup` 帶 `"background": false`，把譜面的背景蓋黑：學生是在沒有背景圖的譜上學的，背景就算 100% dim 也會透出來，那時 DISCO★PRINCE 只打 5%。
+- 2026-11-17 以前的做法是 `live.service`：用讀 .osu 的 state 模型，以 lazer 的協定直接連伺服器，沒有畫面。現在停用了，`python -m live.service` 會直接拒絕（見最後的「已停用」）。
 
-1. 進房後，AI 下載房間目前的譜（`/osu/{id}`，會核對 MD5），用模型在模擬器打一次，再讓 headless lazer（[lazer/TestSceneOsuRLLive.cs](../lazer/TestSceneOsuRLLive.cs)）用房間的 mod 重播並計分，大約 10–30 秒。完成後 AI 自動準備。
-2. 房主開始後，AI 跟一般 lazer 客戶端一樣：
-   - 拿 score token；
-   - 進入 Loaded → ReadyForGameplay；
-   - 遊戲開始後，照真實時間推送每 200 ms 一包的游標和分數（lazer 的 `FrameDataBundle`）；
-   - 結束時送出成績，切到 FinishedPlay。
-3. 房裡其他人的即時排行看得到 AI，也能觀戰 AI 的游標。結算時 AI 的成績也在房間成績裡。
-4. 換譜或換難度時，AI 會自動重新準備，每一輪都會自動再準備。
-
-分數和判定都是 lazer 自己的計分程式算出來的，跟真人用 lazer 打出來的格式和數字完全一樣。
-
-## 安裝（第一次）
+## 安裝（第一次，在直播機）
 
 1. 在伺服器網站註冊 AI 的帳號（開台的話就是 Miyo 的 osu 帳號，名稱和頭像用她的）。
-2. 安裝 Python 套件（`pip install -r requirements.txt`）和 .NET 10 SDK（Windows：`winget install Microsoft.DotNet.SDK.10`）。
-3. 執行：
+2. 安裝 Python 套件（`pip install -r requirements.txt`，GPU 版放在 `.venv-gpu`）、.NET 10 SDK（Windows：`winget install Microsoft.DotNet.SDK.10`）、VMulti（`SETUP_STREAM_PC.md` 第 4 步）。
+3. 把 fork（`SQL1024-sql/osu` 的 `feature/rl-bot`）clone 到 `../ppy-osu`。`osu.Game/Online/DevelopmentEndpointConfiguration.cs` 要自己改成讀 `OSU_RL_LAZER_SERVER`，fork 才會連私人伺服器（這行不進 git）：
 
-```bash
-python -m live.setup
+```csharp
+WebsiteUrl = APIUrl = System.Environment.GetEnvironmentVariable("OSU_RL_LAZER_SERVER") ?? @"https://dev.ppy.sh";
 ```
 
-它會問伺服器網址和 AI 帳號，產生控制金鑰，寫進 `live/.env`；ppy/osu 不在 `OSU_REPO`（預設 `../ppy-osu`）時，會下載測過的版本、放進計分用的 harness 並編譯（第一次要幾分鐘）；最後用 AI 帳號登入確認，並印出 Miyoria 要貼的設定。重跑不會重問，也不會換掉金鑰。
+4. Build fork：`dotnet build ../ppy-osu/osu.Desktop -c Release`（或重做 `live.bundle`）。
+5. 執行 `python -m live.setup`。它會問伺服器網址和 AI 帳號、產生控制金鑰，寫進 `live/.env`；用 AI 帳號登入確認一次；最後印出 Miyoria 要貼的設定。重跑不會重問，也不會換掉金鑰。
+6. 開一個 fork 副本，連私人伺服器（副本 9；點播、學生的譜、多人房都在這同一個副本打）：
+
+```powershell
+$env:OSU_RL_INSTANCE = "9"; $env:OSU_RL_LAZER_SERVER = "https://shdcloud.top"; .venv-gpu\Scripts\python -m live.bridge launch
+```
+
+7. 在那個視窗裡**手動**登入 AI 的帳號，密碼自己打，不要讓程式代打。fork 會記住登入。
 
 ## 設定（`live/.env` 或環境變數；`live/.env` 不會進 git，`live.setup` 會寫好）
 
 | 變數 | 意思 |
 |---|---|
-| `OSU_RL_SERVER` | 伺服器網址，例如 `https://shdcloud.top`，本機測試用 `http://127.0.0.1:3000` |
-| `OSU_RL_AI_USERNAME` / `OSU_RL_AI_PASSWORD` | AI 帳號 |
-| `OSU_RL_CONTROL_TOKEN` | 控制 API 的金鑰（16 字以上），Discord 機器人呼叫時帶 `Authorization: Bearer <token>` |
+| `OSU_RL_SERVER` | 伺服器網址，例如 `https://shdcloud.top`。fork 連的不是這台就一下都不打 |
+| `OSU_RL_AI_USERNAME` | AI 的帳號。fork 登入的不是它就一下都不打（每次進房、每打一首前都會檢查） |
+| `OSU_RL_AI_PASSWORD` | 只有 `live.setup` 登入確認時用；打譜時是 fork 自己登入 |
+| `OSU_RL_BLOCKED_ACCOUNTS` | 逗號分隔，AI 絕對不能用的帳號（自己的帳號放這裡） |
+| `OSU_RL_CONTROL_TOKEN` | 控制 API 的金鑰（16 字以上），Miyoria 呼叫時帶 `Authorization: Bearer <token>` |
+| `OSU_RL_INSTANCE` | 用哪個 fork 副本（bridge 在 `24051 + 副本號`），每支程式都要一樣 |
+| `OSU_RL_LAZER_SERVER` | 開 fork 時給它的伺服器網址 |
+| `OSU_RL_MIRROR_LOOKUP` / `OSU_RL_MIRROR_DOWNLOAD` | 點播抓譜的鏡像站（預設 catboy.best） |
 | `OSU_RL_TESTER_USERNAME` / `OSU_RL_TESTER_PASSWORD` | 只有 `live.e2e` 測試要用 |
 
-## 啟動
+## 啟動（每次開台）
 
-```bash
-python -m live.service
+fork 副本 9 開著、登入 AI 帳號之後，同一個 PowerShell（`OSU_RL_INSTANCE` 一樣是 9）開兩支：
+
+```powershell
+.venv-gpu\Scripts\python -m live.room_play                  # 多人房和手動開的譜；API 在 127.0.0.1:8767
+.venv-gpu\Scripts\python -m live.stream --requests 8766     # 點播優先，沒有點播時學生打它自己的譜；API 在 127.0.0.1:8766
 ```
 
-預設聽 `127.0.0.1:8765`，跟 Miyoria 在同一台就不用改。Miyoria 在別台電腦時用 `--host 0.0.0.0`，兩台之間走 Tailscale（或 HTTPS 反向代理）。
-
-跟大家一起打時，多半不要全力：
-
-```bash
-python -m live.service --feel good --view 8771
-```
-
-- `--feel`：還沒被指定手感時用哪個（`full` / `pro` / `good` / `casual`，預設 `full`），見下面「手感」。進房、換強度、單人打都可以另外帶 `feel`。
-- `--view`：學生的視角（`live.vision_view`，`neuro` 樣式），照房間的遊戲時間畫出地圖和 AI 的游標，給 OBS 的瀏覽器來源用。不要跟 `live.stream` 的 8770 用同一個埠。
+- 只要點播、不要學生一直打它自己的譜：第二支改成 `python -m live.requests --port 8766`。
+- 學生的視角（OBS 的瀏覽器來源）在 `http://127.0.0.1:8770`。`live.room_play` 預設也開在 8770，跟 `live.stream` 一起開時給它 `--view 0` 或換一個埠。
+- 要讓 AI 進房：Miyoria 的 `/queue osu join <房號>`，或直接在 fork 裡操作。進去後它自己按準備（`--no-auto-ready` 關掉）。學生的譜是一首接一首打，中間只隔幾秒，所以進房前先停掉 `live.stream`，進房後再開（見「同一個 fork 做全部」）。
+- Miyoria 在別台電腦時：`live.room_play --host 0.0.0.0`、`live.stream --requests 8766 --requests-host 0.0.0.0`，兩台之間走 Tailscale。
 
 ## 給 Discord 機器人的接口
 
-[tools.json](tools.json) 是 OpenAI function calling 格式的 tool 定義，TS 那邊直接載入，放進 `tools` 就能用。每個 tool 對應一個 HTTP 端點：
+Miyoria 的 osu 擴充（Miyoria repo 的 `extensions/osu/README.md`）把指令和工具轉成這兩個 API 的呼叫，金鑰都是 `OSU_RL_CONTROL_TOKEN`：
 
-| tool | HTTP | body | 回傳 |
+| 誰 | 位址 | 端點 | Miyoria 那邊 |
 |---|---|---|---|
-| `osu_ai_status` | `GET /status` | | 所在房間、難度、是否已準備、是否在打、上一場結果 |
-| `osu_ai_list_rooms` | `GET /rooms` | | `[{id, name, host, has_password, participants}]` |
-| `osu_ai_join_room` | `POST /join` | `{room_id, password?, level?, feel?}` | 同 status |
-| `osu_ai_leave_room` | `POST /leave` | | 同 status |
-| `osu_ai_set_level` | `POST /level` | `{level?, feel?}`（至少一個） | 同 status |
-| `osu_ai_play_map` | `POST /play` | `{beatmap_id, level?, feel?, mods?}` | acc、rank、分數、combo、判定統計、`replay_url` |
+| `live.room_play` | `127.0.0.1:8767`（Miyoria 的 `seat_url`） | `GET /status`、`GET /rooms`、`POST /join {room_id, password?}`、`POST /leave` | `/queue osu status`、`join`、`leave`，`osu_ai_status`、`osu_ai_list_rooms`、`osu_ai_join_room`、`osu_ai_leave_room` |
+| `live.stream --requests` / `live.requests` | `127.0.0.1:8766`（Miyoria 的 `queue_url`） | `POST /request`、`GET /queue`、`POST /skip`、`POST /clear`（見下面「控制 API」） | `/queue osu request`、`list`、`skip`、`clear`，`osu_ai_play_map` |
 
-`replay_url`（`/replays/<id>.osr`）不用金鑰就能下載，機器人可以直接把檔案貼到 Discord。
-
-直播用（Miyoria 的 osu game adapter 用這幾個，見 Miyoria 的 `extensions/osu/README.md`）：
-
-| HTTP | body / query | 做什麼 |
-|---|---|---|
-| `POST /solo` | `{beatmap_id, level?, feel?, mods?}` | AI 用自己的帳號單人打一張譜：準備好就照真實時間打，畫面推到伺服器，任何 lazer 客戶端都能觀戰它；打完送出成績。馬上回傳，過程看事件 |
-| `POST /stop` | | 停止單人打譜 |
-| `GET /events` | `?after=<id>&wait=<秒>` | 事件（long-poll，最多等 60 秒）：`preparing`、`started`、`combo_break`、`finished`、`aborted`、`error`。回傳 `{events, last}` |
-
-`GET /status` 的 `now` 是正在打的這張譜（曲名、進度、combo、準度、miss），照遊戲時間更新。
-
-`GET /status` 多了 `feel`，`GET /feels` 列出可用的手感。
-
-**直播畫面**：在直播機開 lazer，用另一個帳號登入同一台伺服器，OBS 擷取這個視窗。多人房：進同一個房間、不按準備、改成觀戰，lazer 會把房裡每個人的畫面並排。單人：到 AI 帳號的個人頁按觀戰。
-
-TS 範例（tool 名稱轉成 HTTP 呼叫）：
-
-```ts
-import tools from "./tools.json";
-const ROUTES: Record<string, [string, string]> = {
-  osu_ai_status: ["GET", "/status"], osu_ai_list_rooms: ["GET", "/rooms"], osu_ai_join_room: ["POST", "/join"],
-  osu_ai_leave_room: ["POST", "/leave"], osu_ai_set_level: ["POST", "/level"], osu_ai_play_map: ["POST", "/play"],
-};
-async function callOsuTool(name: string, args: object) {
-  const [method, path] = ROUTES[name];
-  const r = await fetch(`${process.env.OSU_AI_URL}${path}`, {
-    method, headers: { Authorization: `Bearer ${process.env.OSU_AI_TOKEN}`, "Content-Type": "application/json" },
-    body: method === "POST" ? JSON.stringify(args) : undefined,
-  });
-  return r.json(); // 把這個當成 tool 的結果交回給模型
-}
-```
-
-## 難度
-
-| level | 模型 | H6 驗證 acc |
-|---|---|---|
-| `easy` | Exp 012 的 1M 步 checkpoint | 72% |
-| `normal` | 2M 步 | 97.5% |
-| `hard` | 5M 步 | 98.2% |
-| `expert` | 12M 步（目前最佳） | 99.3% |
-
-`normal` 以上差距不大。要更像人，用「手感」（`feel`，見下面 `live.humanize`）：多人房、單人打和 `/play` 都可以帶。手感是在 headless lazer 算分**之前**加進動作的，所以房裡的分數、即時排行、觀戰的游標和 replay 都是同一場「像人」的打法。它的亂數由譜決定：同一張譜、同樣的 level 和 feel 每次打法都一樣，第二次直接從快取拿。
-
-```bash
-python -m live.prepare maps/test/renatus_hard.osu --feel good     # expert / good: 98.94% rank A
-```
+每個端點的細節在「坐在房間裡打」和「直播點譜」。Miyoria 那邊要貼的設定（`queue_url`、`seat_url`、金鑰）`live.setup` 最後會印出來。
 
 ## 坐在房間裡打（`live.room_play`）
 
@@ -229,18 +175,73 @@ python -m live.humanize maps/test/renatus_hard.osu
 
 ### 控制 API
 
-金鑰同 `live.service`（`Authorization: Bearer <OSU_RL_CONTROL_TOKEN>`），預設只聽 `127.0.0.1:8766`。Miyoria 在別台時加 `--requests-host 0.0.0.0`，走 Tailscale。
+金鑰是 `OSU_RL_CONTROL_TOKEN`（`Authorization: Bearer <token>`），預設只聽 `127.0.0.1:8766`。Miyoria 在別台時加 `--requests-host 0.0.0.0`，走 Tailscale。
 
 | HTTP | body | 回傳 |
 |---|---|---|
 | `GET /queue` | | `{now, queue, recent, feels, held}` |
-| `POST /request` | `{beatmap_id, by, by_id?, feel?}` | `{item, position}`（會先抓譜，要幾秒） |
+| `POST /request` | `{beatmap_id, by, by_id?, feel?}`（`feel` 還收，但不影響打法） | `{item, position}`（會先抓譜，要幾秒） |
 | `POST /skip` | | `{skipped}` |
 | `POST /clear` | `{all?}` | `{cleared, skipped}` |
 
 錯誤回 400 和 `{"error": "<給觀眾看的原因>"}`，例如「找不到這張譜」、「每個人最多同時點 2 首」。
 
 ## 測試
+
+目前是在直播機上實際跑（2026-11-17～19，fork 副本 9，shdcloud.top）：
+
+- 點播：HTTP 點 beatmap 75（DISCO★PRINCE Normal），從鏡像站下載、匯入 fork、vision 學生打完。cycle 6 拿到 88.3%（16 miss、slider tick 67/90）。
+- 同一個 fork：在多人畫面時 bridge 的 `play`、`menu` 被拒絕，下一首點播會先排著；有人手動開的譜正在打時，`live.stream` 會等。
+- 手動開的單人譜：`live.room_play` 自動接手打，打的時候會把 fork 叫到最前面，成績照常送出。
+- `live.room_play` 的 `rooms`、`join`、`ready`、`leave` 編譯過，還沒在真的房間裡跑過。
+- Miyoria 那邊：`pnpm --filter @miyoria/ext-osu test`，用假的點播佇列和假的 `live.room_play` 跑完整的 SDK 流程。
+
+## 已知限制
+
+- 學生只學過不開 mod 的 No Fail 譜。房間開 HR、DT 時照樣會打，但會比較差。
+- 多人房用的是虛擬繪圖板，移動的是真的游標：打譜時 fork 要在最前面，不要碰滑鼠。
+- 進房前要先停掉 `live.stream`（學生的譜一首接一首，中間沒空檔）。
+- AI 的成績會跟一般玩家一樣進排行榜和 pp。要排除，得在伺服器那邊加一個 AI 帳號的標記。IllyaBot 用的 `is_bot` 會擋住登入，不能直接拿來用。
+- 2026-11-17 在 shdcloud.top 的房間 20、21 看到 `room_score_token_revoked`，原因還沒查。
+
+## 已停用：協定打法（`live.service`）
+
+2026-11-17 以前，AI 用 `live.service` 以 lazer 客戶端的協定連上伺服器（SignalR / REST），不用畫面、也不用滑鼠鍵盤。它用讀 .osu 的 state 模型先在模擬器打一次，再讓 headless lazer（[lazer/TestSceneOsuRLLive.cs](../lazer/TestSceneOsuRLLive.cs)）用房間的 mod 重播並計分。現在只用 vision 學生上場，所以 `python -m live.service` 會直接拒絕。程式和下面的紀錄留著；完整的舊說明（HTTP 端點、`tools.json`、手感）在 git 歷史裡 commit `3c34e83` 的這個檔案。
+
+```
+Discord 機器人 --HTTP 8765--> live/service.py --> live/player.py --SignalR / REST--> osu! 伺服器
+                                         \-> live/prepare.py: 模擬器打譜 + headless lazer 算分
+```
+
+### 一場怎麼跑
+
+1. 進房後，AI 下載房間目前的譜（`/osu/{id}`，會核對 MD5），用模型在模擬器打一次，再讓 headless lazer（[lazer/TestSceneOsuRLLive.cs](../lazer/TestSceneOsuRLLive.cs)）用房間的 mod 重播並計分，大約 10–30 秒。完成後 AI 自動準備。
+2. 房主開始後，AI 跟一般 lazer 客戶端一樣：
+   - 拿 score token；
+   - 進入 Loaded → ReadyForGameplay；
+   - 遊戲開始後，照真實時間推送每 200 ms 一包的游標和分數（lazer 的 `FrameDataBundle`）；
+   - 結束時送出成績，切到 FinishedPlay。
+3. 房裡其他人的即時排行看得到 AI，也能觀戰 AI 的游標。結算時 AI 的成績也在房間成績裡。
+4. 換譜或換難度時，AI 會自動重新準備，每一輪都會自動再準備。
+
+分數和判定都是 lazer 自己的計分程式算出來的，跟真人用 lazer 打出來的格式和數字完全一樣。
+
+### 難度（state 模型的強度）
+
+| level | 模型 | H6 驗證 acc |
+|---|---|---|
+| `easy` | Exp 012 的 1M 步 checkpoint | 72% |
+| `normal` | 2M 步 | 97.5% |
+| `hard` | 5M 步 | 98.2% |
+| `expert` | 12M 步（目前最佳） | 99.3% |
+
+`normal` 以上差距不大。要更像人，用「手感」（`feel`，見下面 `live.humanize`）：多人房、單人打和 `/play` 都可以帶。手感是在 headless lazer 算分**之前**加進動作的，所以房裡的分數、即時排行、觀戰的游標和 replay 都是同一場「像人」的打法。它的亂數由譜決定：同一張譜、同樣的 level 和 feel 每次打法都一樣，第二次直接從快取拿。
+
+```bash
+python -m live.prepare maps/test/renatus_hard.osu --feel good     # expert / good: 98.94% rank A
+```
+
+### 測試（`live.e2e`）
 
 ```bash
 python -m live.e2e <beatmap id> <beatmap md5> [level]
@@ -260,10 +261,3 @@ python -m live.e2e <beatmap id> - [level] --solo
 ```
 
 測試帳號觀戰 AI，AI 單人打一張譜，檢查觀戰端收到畫面、事件順序（preparing → started → … → finished）和單人成績。2026-11-03 在本機 Illyaverse 測過 Renatus Hard：expert 打出 SS（1046 包畫面送到觀戰端，成績已存）。
-
-## 已知限制
-
-- AI 只學過不開 mod 的譜。房間有 HR、DT 時照樣會打，但會比較差。
-- 每台跑服務的機器都要有 .NET 和編好的 ppy-osu，因為計分是 headless lazer 算的。
-- 跳過前奏（skip intro）時，AI 不會跟著跳。即時排行是照遊戲時間對齊的，所以分數顯示不受影響，但 AI 會等到它自己的時間才結束那一輪。
-- AI 的成績會跟一般玩家一樣進排行榜和 pp。要不要排除，得在伺服器那邊加一個 AI 帳號的標記。IllyaBot 用的 `is_bot` 會擋住登入，不能直接拿來用。

@@ -5,7 +5,7 @@
 1. asks for the osu! server and the AI's account (once), makes the control token, writes live/.env
 2. gets lazer (ppy/osu at the tested commit) into OSU_REPO if it is not there, adds the scoring harness, builds it
 3. logs in with the AI's account
-4. prints the settings for Miyoria's osu extension
+4. prints how to start it and the settings for Miyoria's osu extension
 """
 import asyncio
 import getpass
@@ -94,13 +94,17 @@ if __name__ == "__main__":
     lazer()
     asyncio.run(login(env))
     print(f"""
-All set. Start the AI player with:
-    python -m live.service
+All set. Open the fork (copy 9) on this server and log in there by hand with the AI's account:
+    $env:OSU_RL_INSTANCE = "9"; $env:OSU_RL_LAZER_SERVER = "{env['OSU_RL_SERVER']}"; python -m live.bridge launch
+Then start, with the same OSU_RL_INSTANCE:
+    python -m live.room_play                 # rooms and plays started by hand, API on 127.0.0.1:8767
+    python -m live.stream --requests 8766    # requests and the student's own maps, API on 127.0.0.1:8766
 
 Miyoria (miyoria.toml), when it runs on this machine:
     [extensions."miyoria.osu"]
-    account = "{env['OSU_RL_AI_USERNAME']}"
-    blocked_accounts = []   # your own osu! accounts, which the AI must never use
+    queue_url = "http://127.0.0.1:8766"
+    seat_url = "http://127.0.0.1:8767"
     env = {{ MIYORIA_OSU_TOKEN = "{env['OSU_RL_CONTROL_TOKEN']}" }}
-(on another machine also set url = "http://<this machine>:8765" and start the service with --host 0.0.0.0)
+(on another machine use this machine's address there, and start live.room_play with --host 0.0.0.0 and
+live.stream with --requests-host 0.0.0.0)
 """)
