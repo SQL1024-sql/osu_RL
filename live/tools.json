@@ -25,7 +25,8 @@
     "properties": {
      "room_id": {"type": "integer", "description": "Room ID, from osu_ai_list_rooms or the room's link."},
      "password": {"type": "string", "description": "Room password, if the room has one."},
-     "level": {"type": "string", "enum": ["easy", "normal", "hard", "expert"], "description": "How strong the AI plays. expert is its best (about 99% accuracy)."}
+     "level": {"type": "string", "enum": ["easy", "normal", "hard", "expert"], "description": "How strong the AI plays. expert is its best (about 99% accuracy)."},
+     "feel": {"type": "string", "enum": ["full", "pro", "good", "casual"], "description": "How human it plays: full is its whole strength (nearly always SS), pro / good / casual aim and time a little off, like a person, and miss more on hard maps."}
     },
     "required": ["room_id"],
     "additionalProperties": false
@@ -44,11 +45,11 @@
   "type": "function",
   "function": {
    "name": "osu_ai_set_level",
-   "description": "Changes how strong the AI plays, from the next round on.",
+   "description": "Changes how strong the AI plays (level) and how human (feel), from the next round on. Give either or both.",
    "parameters": {
     "type": "object",
-    "properties": {"level": {"type": "string", "enum": ["easy", "normal", "hard", "expert"]}},
-    "required": ["level"],
+    "properties": {"level": {"type": "string", "enum": ["easy", "normal", "hard", "expert"]}, "feel": {"type": "string", "enum": ["full", "pro", "good", "casual"], "description": "How human it plays: full is its whole strength (nearly always SS), pro / good / casual aim and time a little off, like a person, and miss more on hard maps."}},
+    "required": [],
     "additionalProperties": false
    }
   }
@@ -63,6 +64,7 @@
     "properties": {
      "beatmap_id": {"type": "integer", "description": "Beatmap (difficulty) ID on the osu! server."},
      "level": {"type": "string", "enum": ["easy", "normal", "hard", "expert"]},
+     "feel": {"type": "string", "enum": ["full", "pro", "good", "casual"], "description": "How human it plays: full is its whole strength (nearly always SS), pro / good / casual aim and time a little off, like a person, and miss more on hard maps."},
      "mods": {"type": "array", "items": {"type": "object", "properties": {"acronym": {"type": "string"}}, "required": ["acronym"]}, "description": "Mods as lazer APIMod objects, e.g. [{\"acronym\": \"HD\"}]. The AI was trained without mods, so expect it to do worse with HR or DT."}
     },
     "required": ["beatmap_id"],

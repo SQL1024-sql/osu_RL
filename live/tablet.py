@@ -104,6 +104,30 @@ def lazer_window():
     return ctypes.c_void_p(found[0])
 
 
+def bring_front(hwnd=None):
+    """Puts the fork's window (lazer_window) in front. -> whether it is in front afterwards.
+
+    Windows lets a process take the foreground only if it got the last input event, so a background script (or the
+    fork's own bridge "focus", which tries AttachThreadInput) is refused while a browser is in front (2026-11-17: Chrome
+    kept it through a whole room play). An Alt tap first makes this process the last to send input; Alt alone does
+    nothing in lazer, where the key-up lands."""
+    hwnd = hwnd or lazer_window().value
+    user32.GetForegroundWindow.restype = ctypes.c_void_p
+    if user32.GetForegroundWindow() == hwnd:
+        return True
+    VK_MENU, KEYUP = 0x12, 0x2
+    user32.keybd_event(VK_MENU, 0, 0, 0)
+    try:
+        if user32.IsIconic(ctypes.c_void_p(hwnd)):
+            user32.ShowWindow(ctypes.c_void_p(hwnd), 9)  # SW_RESTORE
+        user32.BringWindowToTop(ctypes.c_void_p(hwnd))
+        user32.SetForegroundWindow(ctypes.c_void_p(hwnd))
+    finally:
+        user32.keybd_event(VK_MENU, 0, KEYUP, 0)
+    time.sleep(0.05)
+    return user32.GetForegroundWindow() == hwnd
+
+
 PRESS_GAP = 0.003  # s between the two reports of a step where a key goes down (lazer handles input every ~1.5 ms)
 
 

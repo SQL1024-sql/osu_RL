@@ -3,17 +3,25 @@ prepared, streams its live score and cursor while the others play, and submits i
 (solo) it plays one beatmap the same way, so anyone can spectate it from a lazer client (e.g. for a stream).
 While it plays, it narrates game events (started, combo breaks, finished) for the Discord bot.
 
+feel (live.humanize) makes it play like a person rather than at its full strength (the default here is "full", as
+before); the score it submits is lazer's own scoring of that human-looking play. With a view (live.vision_view, style
+"neuro"), the student's view for OBS shows the map and its cursor at the room's gameplay time.
+
 Room flow (server's MultiplayerUserState): Idle 0 -> Ready 1 -> WaitingForLoad 2 -> Loaded 3 -> ReadyForGameplay 4
 -> Playing 5 -> FinishedPlay 6 -> Results 7.
 """
 import asyncio
 import hashlib
 import logging
+import os
 import re
 import time
 
+import numpy as np
+
 from live.hub import Api, HubError
-from live.prepare import LEVELS, prepare
+from live.humanize import FEELS
+from live.prepare import CACHE, LEVELS, prepare
 
 log = logging.getLogger("live")
 IDLE, READY, LOADED, READY_FOR_GAMEPLAY, FINISHED_PLAY = 0, 1, 3, 4, 6
@@ -51,11 +59,23 @@ def bundles(play):
         i = j
 
 
+def keep_osu(osu):
+    """The .osu next to the play cache, for the student's view to draw: -> its path."""
+    os.makedirs(CACHE, exist_ok=True)
+    path = os.path.join(CACHE, hashlib.md5(osu).hexdigest() + ".osu")
+    if not os.path.exists(path):
+        with open(path, "wb") as f:
+            f.write(osu)
+    return path
+
+
 class AiPlayer:
-    def __init__(self, server, username, password, level="expert"):
+    def __init__(self, server, username, password, level="expert", feel="full", view=None):
         self.api = Api(server)
         self.username, self.password = username, password
         self.level = level
+        self.feel = feel
+        self.view = view  # live.vision_view.View (style "neuro"), or None
         self.me = None
         self.mp = self.spectator = None
         self.room = None  # latest room snapshot
@@ -82,9 +102,9 @@ class AiPlayer:
         except HubError:
             pass
 
-    async def join(self, room_id, password="", level=None):
-        if level:
-            self.set_level(level)
+    async def join(self, room_id, password="", level=None, feel=None):
+        if level or feel:
+            self.set_level(level, feel)
         if self.room:
             await self.leave()
         self.room = await self.mp.invoke("JoinRoomWithPassword", int(room_id), password)
@@ -100,7 +120,7 @@ class AiPlayer:
             self.playing.cancel()
         return self.status()
 
-    async def solo(self, beatmap_id, level=None, mods=()):
+    async def solo(self, beatmap_id, level=None, mods=(), feel=None):
         """Plays one beatmap on its own (not in a room), spectatable like any lazer player. Returns at once;
         the play reports through events."""
         if self.room:
@@ -109,7 +129,9 @@ class AiPlayer:
             raise ValueError("already playing")
         if level and level not in LEVELS:
             raise ValueError(f"level must be one of {list(LEVELS)}")
-        self.playing = asyncio.create_task(self._solo(int(beatmap_id), level or self.level, list(mods)))
+        if feel and feel not in FEELS:
+            raise ValueError(f"feel must be one of {list(FEELS)}")
+        self.playing = asyncio.create_task(self._solo(int(beatmap_id), level or self.level, list(mods), feel or self.feel))
         return self.status()
 
     def stop(self):
@@ -126,17 +148,23 @@ class AiPlayer:
                 pass
         return [e for e in self.events if e["id"] > after]
 
-    def set_level(self, level):
-        if level not in LEVELS:
+    def set_level(self, level=None, feel=None):
+        """The model (level) and how human it plays (feel), from the next round on; either may be left out."""
+        if level is None and feel is None:
+            raise ValueError("give a level or a feel")
+        if level is not None and level not in LEVELS:
             raise ValueError(f"level must be one of {list(LEVELS)}")
-        changed, self.level = level != self.level, level
-        if changed and self.room:
+        if feel is not None and feel not in FEELS:
+            raise ValueError(f"feel must be one of {list(FEELS)}")
+        before = (self.level, self.feel)
+        self.level, self.feel = level or self.level, feel or self.feel
+        if (self.level, self.feel) != before and self.room:
             self._prepare_current()
 
     def status(self):
         item = self._item()
         return dict(user=self.me and self.me["username"], room=self.room and self.room.get("roomID"), level=self.level,
-                    beatmap=item and item.get("beatmapID"), ready=bool(self.play), playing=bool(self.playing and not self.playing.done()),
+                    feel=self.feel, beatmap=item and item.get("beatmapID"), ready=bool(self.play), playing=bool(self.playing and not self.playing.done()),
                     now=self.live, last_result=self.last_result)
 
     # --- room events ---
@@ -161,13 +189,13 @@ class AiPlayer:
         if hashlib.md5(osu).hexdigest() != item["beatmapChecksum"].lower():
             raise HubError("downloaded .osu does not match the room's checksum")
         mods = item.get("requiredMods") or []
-        play = await asyncio.to_thread(prepare, osu, mods, self.level)
-        play.update(mods=mods, item=item, meta=meta(osu))
+        play = await asyncio.to_thread(prepare, osu, mods, self.level, self.feel)
+        play.update(mods=mods, item=item, meta=meta(osu), osu_path=keep_osu(osu))
         self.play = play
         await self.mp.invoke("ChangeBeatmapAvailability", {"state": 4, "downloadProgress": None})  # LocallyAvailable
         await self._ready()
         s = play["submission"]
-        log.info("prepared %s at %s: %.2f%% %s", item["beatmapID"], self.level, 100 * s["accuracy"], s["rank"])
+        log.info("prepared %s at %s / %s: %.2f%% %s", item["beatmapID"], self.level, self.feel, 100 * s["accuracy"], s["rank"])
 
     async def _ready(self):
         if self.play and self.room and self.room.get("state", 0) == 0:
@@ -233,13 +261,14 @@ class AiPlayer:
         self._finish(play, result)
         await self.mp.invoke("ChangeState", FINISHED_PLAY)  # the round's results open once everyone is here
 
-    async def _solo(self, beatmap_id, level, mods):
+    async def _solo(self, beatmap_id, level, mods, feel="full"):
         try:
             osu = await self.api.request("GET", f"/osu/{beatmap_id}", raw=True)
             md5 = hashlib.md5(osu).hexdigest()
-            self._emit("preparing", beatmap_id=beatmap_id, level=level, **meta(osu))
-            play = await asyncio.to_thread(prepare, osu, mods, level)
-            play.update(mods=mods, item=dict(beatmapID=beatmap_id, rulesetID=0, beatmapChecksum=md5), meta=meta(osu))
+            self._emit("preparing", beatmap_id=beatmap_id, level=level, feel=feel, **meta(osu))
+            play = await asyncio.to_thread(prepare, osu, mods, level, feel)
+            play.update(mods=mods, item=dict(beatmapID=beatmap_id, rulesetID=0, beatmapChecksum=md5), meta=meta(osu),
+                        osu_path=keep_osu(osu))
             r = await self.api.request("POST", f"/api/v2/beatmaps/{beatmap_id}/solo/scores", data=dict(
                 version_hash=VERSION_HASH, beatmap_hash=md5, ruleset_id="0"))
             await self._stream(play, r["id"])
@@ -260,6 +289,7 @@ class AiPlayer:
         start_ms = min(0, play["frames"][0][0])  # the gameplay clock starts here (lead-in before the first object)
         t0 = time.monotonic()
         narrator = asyncio.create_task(self._narrate(play, t0, start_ms))
+        viewer = asyncio.create_task(self._feed_view(play, t0, start_ms)) if self.view is not None else None
         try:
             for at, bundle in bundles(play):
                 delay = (at - start_ms - LEAD_MS) / 1000 - (time.monotonic() - t0)
@@ -269,9 +299,13 @@ class AiPlayer:
             end = (play["frames"][-1][0] - start_ms) / 1000 - (time.monotonic() - t0)
             await asyncio.sleep(max(0, end))
             await narrator
+            if viewer:
+                viewer.cancel()
             await self.spectator.invoke("EndPlaySessionV2", token, PASSED)
         except asyncio.CancelledError:
             narrator.cancel()
+            if viewer:
+                viewer.cancel()
             self.live = None
             self._emit("aborted", beatmap_id=item["beatmapID"])
             try:
@@ -296,10 +330,36 @@ class AiPlayer:
             self.live.update(progress=round(min(1.0, max(0.0, h["time"] / end)), 3), combo=combo, max_combo=h["maxCombo"],
                              accuracy=h["accuracy"], misses=misses)
 
+    async def _feed_view(self, play, t0, start_ms):
+        """The student's view (style "neuro") follows the play at the room's gameplay time: the map, and the cursor
+        where the AI's moves put it. Moves are sent ahead (LEAD_MS); the view shows them when they happen."""
+        from vision.render import H, W
+        try:
+            self.view.set_map(play["osu_path"])
+        except Exception as e:  # never stop a play over the view
+            log.warning("no student's view for this map: %s", e)
+            return
+        frames = play["frames"]
+        times = np.array([f[0] for f in frames], float)
+        blank = np.zeros((H, W), np.uint8)
+        prev, held_before = None, 0
+        while True:
+            game = start_ms + (time.monotonic() - t0) * 1000
+            j = int(np.searchsorted(times, game, side="right")) - 1
+            if j >= 0 and self.view.want():
+                _, x, y, b = frames[j]
+                buttons = (1 if b & 1 else 0) | (2 if b & 2 else 0)
+                move = np.zeros(2) if prev is None else np.clip((np.array([x, y]) - prev) / 15, -1, 1)
+                self.view.put(blank, (x, y), move, (bool(buttons & 1), bool(buttons & 2)), bool(buttons & ~held_before), game)
+                prev, held_before = np.array([x, y]), buttons
+            if game > times[-1]:
+                return
+            await asyncio.sleep(1 / 120)
+
     def _finish(self, play, result):
         s, item = play["submission"], play["item"]
         stats = s["statistics"]
-        self.last_result = dict(beatmap=item["beatmapID"], level=play["level"], accuracy=s["accuracy"], rank=s["rank"], total_score=s["total_score"],
+        self.last_result = dict(beatmap=item["beatmapID"], level=play["level"], feel=play.get("feel", "full"), accuracy=s["accuracy"], rank=s["rank"], total_score=s["total_score"],
                                 max_combo=s["max_combo"], statistics=stats, score_id=result.get("id"))
         self.live = None
         self._emit("finished", **play.get("meta", {}), **{k: v for k, v in self.last_result.items() if k != "statistics"},
