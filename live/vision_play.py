@@ -34,7 +34,7 @@ from live.tablet import M1, M2, LostFocus, Tablet
 from live.tosu_clock import TosuClock
 from vision.render import H, PX, W, X0, Y0
 
-CKPT = "results/experiments/030-real-dagger-mapkeys/seed0/best.pt"
+CKPT = "results/experiments/031-cycle6/seed0/best.pt"  # the stream's student, cycle 6 (live.stream.STREAM_START)
 CLICK_TH = -0.75  # the real-frame students click with lower logits (live.vision_eval --click-th sweep: 030 clicks 94% of objects, no stray)
 MIN_HOLD = 5  # Exp 031: steps a clicked key stays held (student.MIN_HOLD); 030 sim val 74.8% -> 77.7%, live log re-keyed 63.1% -> 70.0%
 COLS = "wall game x y mx my click hold fire buttons lat newest".split()

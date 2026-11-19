@@ -37,6 +37,9 @@ DIR = os.path.join("runs", "stream")
 NEW, MODELS, BAD, OUTBOX = (os.path.join(DIR, d) for d in ("new", "models", "bad", "outbox"))
 STATE = os.path.join(DIR, "state.json")
 IMPROVE_STATE = os.path.join("runs", "improve", "state.json")
+# the student on stream when this machine has no runs/stream/state.json yet (a fresh clone): cycle 6, in git with
+# its aim offset (best.pt.aim.json)
+STREAM_START = "results/experiments/031-cycle6/seed0/best.pt"
 
 
 def improve_current():
@@ -47,13 +50,19 @@ def improve_current():
         return START
 
 
+def stream_start():
+    """The student a stream starts with when runs/stream/state.json does not exist: STREAM_START, else
+    improve_current() (a checkout without it)."""
+    return STREAM_START if os.path.exists(STREAM_START) else improve_current()
+
+
 def student_ckpt():
-    """The student model on stream: the one live.stream plays now (runs/stream/state.json), else improve_current().
+    """The student model on stream: the one live.stream plays now (runs/stream/state.json), else stream_start().
     live.requests and live.room_play play with it too (vision only)."""
     try:
         return json.load(open(STATE))["current"]
     except (OSError, KeyError, ValueError):
-        return improve_current()
+        return stream_start()
 
 
 def model_name(path):
@@ -88,7 +97,7 @@ class Streamer:
         self.a = a
         for d in (NEW, MODELS, BAD):
             os.makedirs(d, exist_ok=True)
-        self.state = json.load(open(STATE)) if os.path.exists(STATE) else dict(current=improve_current(), since=time.time(), history=[])
+        self.state = json.load(open(STATE)) if os.path.exists(STATE) else dict(current=stream_start(), since=time.time(), history=[])
         sargs = argparse.Namespace(maps=TRAIN_MAPS + GATE_MAPS, shuffle=True, hours=0, plays=0, mods=["NF"],
                                    ckpt=self.state["current"], click_th=a.click_th, min_hold=a.min_hold, press="first",
                                    record=a.record, min_fps=50, max_gb=a.max_gb, restart_fork_mb=6000,
