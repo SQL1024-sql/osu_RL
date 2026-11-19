@@ -44,7 +44,7 @@ GATE_MAPS = ["runs/maps/live_set/5_*.osu", "runs/maps/pool/gate/*.osu"]
 # gate on the newest tier's gate maps and the one before's
 TIERS = [("第 1 級（3–4.5 星）", TRAIN_MAPS, GATE_MAPS)] + [
     (f"第 {n} 級（{lo}–{hi} 星）", [f"runs/maps/tier{n}/train/*.osu"], [f"runs/maps/tier{n}/gate/*.osu"])
-    for n, lo, hi in ((2, 4.5, 5), (3, 5, 5.5), (4, 5.5, 6))]
+    for n, lo, hi in ((2, 4.5, 5), (3, 5, 5.5), (4, 5.5, 6), (5, 6, 6.5), (6, 6.5, 7))]
 
 START = "results/experiments/030-real-dagger-mapkeys/seed0/best.pt"
 
@@ -128,7 +128,7 @@ class Improver:
                                    max_gb=0, restart_fork_mb=6000, out=os.path.join(a.out, "plays"),
                                    background=not a.foreground, view=a.view or None, view_style=a.view_style,
                                    overlay=os.path.join(a.out, "overlay.txt"), lead_ms=a.lead_ms,
-                                   hold_press=a.hold_press, rearm_drop=a.rearm_drop, smooth=a.smooth)
+                                   hold_press=a.hold_press, rearm_drop=a.rearm_drop, smooth=a.smooth, hold_th=a.hold_th)
         self.session = Session(sargs)
         self.phase = "start"
         self.session.overlay_head = self.overlay_lines
@@ -222,7 +222,7 @@ class Improver:
             results.append(self.worker_rows(log_path))
         return results
 
-    PLAY_OPTS = ("lead_ms", "hold_press", "rearm_drop", "smooth")
+    PLAY_OPTS = ("lead_ms", "hold_press", "rearm_drop", "smooth", "hold_th")
 
     def play_opts(self, group):
         """The player options for a group: the loop's (--lead-ms ...), overridden by a dict as the group's third item."""
@@ -404,6 +404,8 @@ class Improver:
 
     def retrain(self, rnd):
         teacher = sorted({f for g in TEACHER_RECS for f in glob.glob(g) if not f.endswith(".labels.npz")})
+        if self.fovea():  # the teacher's recordings kept no close-ups: a close-up model cannot use them, so they
+            teacher = [f for f in teacher if has_fovea(f)]  # take none of the memory meant for recordings that can
         if self.a.instances > 1:
             self.close_extra_copies()
         val = self.val_recs()
@@ -415,6 +417,7 @@ class Improver:
         cmd = [sys.executable, "-u", "-m", "live.finetune_real", *teacher, *students, "--val", *val, "--clicks", "map",
                "--init", init, "--updates", str(self.a.updates), "--lr", str(self.a.lr), "--frames", "cpu",
                "--spin-frac", str(self.a.spin_frac), "--aim-w", str(self.a.aim_w), "--aim-ms", str(self.a.aim_ms),
+               "--click-steps", str(self.a.click_steps),
                "--out", out] + (["--spin-rule"] if self.a.spin_rule else []) \
             + (["--fovea", str(self.fovea())] if self.fovea() else [])
         self.say(f"retraining from {init} on {len(teacher)} teacher + {len(students)} student recordings, held out: "
@@ -461,12 +464,15 @@ class Improver:
         return best
 
     def train_draw(self, n):
-        """n training maps for this round: from the tier the loop is on, half from the earlier tiers once past the first."""
+        """n training maps for this round: from the tier the loop is on, past the first only --new-tier-frac of them
+        (the rest from the earlier tiers): with half from tier 4 the candidates drifted to the hardest maps and lost
+        5.4 points on the gate (round 36)."""
         t = self.state["tier"]
         new = maps_of(TIERS[t][1])
         old = maps_of([g for _, tr, _ in TIERS[:t] for g in tr])
         pick = lambda maps, k: (random.sample(maps, min(k, len(maps))) * (k // max(1, len(maps)) + 1))[:k] if maps and k else []
-        draw = pick(new, n - n // 2) + pick(old, n // 2) if t else pick(new, n)
+        k_new = max(1, round(self.a.new_tier_frac * n)) if t else n
+        draw = pick(new, k_new) + pick(old, n - k_new) if t else pick(new, n)
         random.shuffle(draw)
         return draw
 
@@ -496,7 +502,8 @@ class Improver:
         scores = {"current": [], "candidate": []}
         by_map = {"current": {}, "candidate": {}}
         models = {"current": self.state["current"], "candidate": cand}
-        pairs = []  # candidate minus current on one map in one repetition (played at the same time on two copies)
+        pairs = []  # candidate minus current on one map, on the same copy (or, on one copy only, in one repetition)
+        by_copy = {}
 
         def pair(rows_by_who):
             acc = {w: {r["map"]: r["accuracy"] for r in rows if r.get("accuracy") is not None} for w, rows in rows_by_who.items()}
@@ -505,7 +512,12 @@ class Improver:
         # repetitions at once as copies allow, sides swapped so that over the gate each model plays on every copy as
         # often as the other (a copy that scores higher or lower then favours neither; with 4 copies use --gate 4)
         per = max(1, self.a.instances // 2)
-        reps = [("current", "candidate") if (i % per + i // per) % 2 == 0 else ("candidate", "current") for i in range(self.a.gate)]
+        # every model must get every copy equally often: copy 0 (played here, by this process) scored 7.4 points above
+        # copy 3 with the same model (rounds 34-39), and with 2 repetitions on 4 copies the current model always had
+        # copies 0 and 3, the candidate 1 and 2: the candidates' -3 points were that, not the candidates. So the
+        # repetitions are rounded up to whole rounds of side swaps (2 batches of 4 copies: 4)
+        n_reps = self.a.gate if self.a.instances < 2 else -(-max(self.a.gate, 2 * per) // (2 * per)) * 2 * per
+        reps = [("current", "candidate") if (i % per + i // per) % 2 == 0 else ("candidate", "current") for i in range(n_reps)]
         for b in range(0, len(reps), per):
             if self.a.instances < 2:
                 got = {}
@@ -520,8 +532,16 @@ class Improver:
                     if r.get("accuracy") is not None:
                         scores[who].append(r["accuracy"])
                         by_map[who].setdefault(r["map"], []).append(r["accuracy"])
-            for k in range(0, len(groups_rows) - 1, 2):  # the two models of one repetition
-                pair(dict(groups_rows[k: k + 2]))
+            if self.a.instances < 2:
+                pair(dict(groups_rows))
+            else:  # remembered by copy: each copy plays the current model in one batch and the candidate in another
+                for copy, (who, rows) in enumerate(groups_rows):
+                    by_copy.setdefault(copy, {}).setdefault(who, []).append(rows)
+        # pairs on the same copy and the same map, the two models in different batches: what a copy adds or takes away
+        # (7 points between copy 0 and copy 3, rounds 34-39) cancels out of every pair
+        for copy, got in by_copy.items():
+            for cur_rows, cand_rows in zip(got.get("current", []), got.get("candidate", [])):
+                pair({"current": cur_rows, "candidate": cand_rows})
         self.use(self.state["current"])
         mean = lambda v: float(np.mean(v)) if v else float("nan")
         return mean(scores["current"]), mean(scores["candidate"]), scores, by_map, pairs
@@ -602,9 +622,9 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--rounds", type=int, default=0, help="0: until Ctrl+C")
     p.add_argument("--collect", type=int, default=12, help="training-map plays per round")
-    p.add_argument("--gate", type=int, default=2,
-                   help="plays of each gate map per model per round (with 4 copies, 2 is one batch: more gate maps "
-                        "rather than more repetitions of the same few)")
+    p.add_argument("--gate", type=int, default=4,
+                   help="plays of each gate map per model per round, rounded up so that each model plays on every copy "
+                        "as often as the other (with 4 copies: 4, two batches)")
     p.add_argument("--margin", type=float, default=0.3,
                    help="accuracy points the candidate must be ahead by, paired (the same map in the same repetition)")
     p.add_argument("--swap-t", type=float, default=0.0,
@@ -615,13 +635,18 @@ def main():
     p.add_argument("--lr", type=float, default=3e-5,
                    help="fine-tuning learning rate (2026-11-13, calibrated, vs r001 on the gate: 3e-5 x 6000 86.1%%, 3e-5 x 2000 "
                         "84.8%%, 1e-4 x 1000 84.2%%, r001 85.5%%; 1e-4 x 6000 was the old default)")
+    p.add_argument("--new-tier-frac", type=float, default=0.25, help="share of training maps from the newest tier")
+    p.add_argument("--click-steps", type=int, default=1,
+                   help="steps labelled as a click before each object (2 merged the clicks of stream notes into one)")
     p.add_argument("--init", default="current",
                    help="what each candidate trains from: the model playing now (current), or a weights file such as "
                         "results/experiments/020-student/seed0/round6.pt (from round 3 on: candidates from round6 kept losing)")
     p.add_argument("--start", default=START, help="the model that plays first (when there is no state.json yet)")
     p.add_argument("--max-recs", type=int, default=200, help="at most this many student recordings per training run")
     p.add_argument("--ram-gb", type=float, default=14, help="system memory for the training recordings' frames")
-    p.add_argument("--ram-margin-gb", type=float, default=6, help="system memory left free when picking them")
+    p.add_argument("--ram-margin-gb", type=float, default=4,
+                   help="system memory left free when picking them (6 left 2.9 GB free at worst in a test; with close-ups "
+                        "only 7 of 64 recordings fitted)")
     p.add_argument("--spin-frac", type=float, default=0.1,
                    help="share of real training samples drawn from inside spinners (fine-tuning forgot how to spin)")
     p.add_argument("--fovea", type=int, default=0,
@@ -638,6 +663,9 @@ def main():
     p.add_argument("--hold-press", type=float, default=8.0,
                    help="press a key when none is down and the hold logit is over this (spinners need it: their click is "
                         "missed after a slider); 2026-11-14 gate: r001 83.95%% without, 83.96%% with")
+    p.add_argument("--hold-th", type=float, default=-1.5,
+                   help="hold logit under which a held key is let go. 2026-11-18 A/B (live.ablate): 0 80.95%%, -1.5 "
+                        "81.78%% (+0.83 +- 0.22 by map; slider tail misses 12.5 -> 8.3), -3 81.62%%")
     p.add_argument("--rearm-drop", type=float, default=None,
                    help="click logit drop from its peak that allows the next click while still over the threshold. "
                         "2026-11-14 A/B at 1.0: the same number of clicks (the logit does not dip between stream notes)")

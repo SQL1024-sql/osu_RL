@@ -84,6 +84,16 @@ def fork_pid():
     return pid.value
 
 
+def pid_alive(pid):
+    h = ctypes.windll.kernel32.OpenProcess(0x1000 | 0x00100000, False, int(pid))  # QUERY_LIMITED_INFORMATION | SYNCHRONIZE
+    if not h:
+        return False
+    try:
+        return ctypes.windll.kernel32.WaitForSingleObject(h, 0) == 0x102  # WAIT_TIMEOUT: still running
+    finally:
+        ctypes.windll.kernel32.CloseHandle(h)
+
+
 def keep_awake(on=True):
     flags = ES_CONTINUOUS | (ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED if on else 0)
     ctypes.windll.kernel32.SetThreadExecutionState(flags)
@@ -114,6 +124,10 @@ class Session:
                                    background=args.background)
         self.player.lead_ms = getattr(args, "lead_ms", 0.0) or 0.0
         self.player.hold_press = getattr(args, "hold_press", None)
+        self.player.hold_th = getattr(args, "hold_th", self.player.hold_th)
+        self.player.decoder = getattr(args, "decoder", "auto") or "auto"
+        if getattr(args, "aim_offset", None):  # instead of each checkpoint's own (<ckpt>.aim.json); 0 0: none
+            self.player.aim_offset = self.player.aim_offset_fixed = np.array(args.aim_offset, float)
         self.player.rearm_drop = getattr(args, "rearm_drop", None)
         self.player.smooth = getattr(args, "smooth", None)
         self.overlay_head = lambda: []  # -> first lines of the overlay text (live.improve: the round, what it does)
@@ -169,9 +183,10 @@ class Session:
         self.say(f"connected to the fork: {st}")
         # the student's skin, no HUD, a borderless window (stays up behind other windows; fullscreen minimizes); in the
         # background nobody is at the mouse, so no menu cursor follows it on the stream
+        # and no beatmap background: the student learnt on maps without one (a set's image shows through 100% dim)
         # (args.hud: live.stream shows the score, accuracy and combo to viewers; they sit outside the student's frame
         # but its bottom edge, where the hit error bar is. The gameplay leaderboard is off in any case: bridge.launch)
-        setup = dict(cmd="setup", skin=SKIN_NAME, window="borderless", hud=bool(getattr(self.args, "hud", False)))
+        setup = dict(cmd="setup", skin=SKIN_NAME, window="borderless", hud=bool(getattr(self.args, "hud", False)), background=False)
         if self.args.background:
             setup["cursor"] = False
         r = self.clock.call(**setup)
@@ -258,6 +273,10 @@ class Session:
             self.say("the fork lost the focus mid-map: asking it back; the map is abandoned")
             return self.focus()
 
+        if getattr(a, "oracle", None):  # perfect aim or keys from the map (live.oracle): a diagnostic
+            from live.oracle import Oracle
+            self.player.oracle = Oracle(path, a.oracle)
+            row["oracle"] = a.oracle
         result = self.player.play(self.clock, record=self.recording, start_timeout=60, on_lost_focus=lost,
                                   max_seconds=length + 30)
         if result is None:
@@ -303,8 +322,14 @@ class Session:
         if mb and a.restart_fork_mb and mb > a.restart_fork_mb and self.clock is not None:
             self.say(f"the fork uses {mb} MB (> {a.restart_fork_mb}): restarting it")
             pid = fork_pid()
+            # the window capture first: one left running on the killed window crashed the next capture's start
+            # (access violation in windows_capture, the process gone without a word, 2026-11-18)
+            self.player.release_capture()
             if pid:
                 os.kill(pid, 9)
+                t0 = time.time()  # gone before reconnecting: a dying fork still accepted the connection, then never
+                while time.time() - t0 < 20 and pid_alive(pid):  # answered (60 s timeout and a lost map)
+                    time.sleep(0.2)
             self.clock = None
 
     def run(self):
@@ -368,6 +393,13 @@ def main():
     p.add_argument("--lead-ms", type=float, default=0.0, help="ms added to the frame age the student is told (acts earlier)")
     p.add_argument("--rearm-drop", type=float, default=None, help="click logit drop from its peak that re-arms the next click")
     p.add_argument("--smooth", type=float, default=None, help="weight of the new move against the last (0.5: average)")
+    p.add_argument("--decoder", choices=["auto", "logit", "sched"], default="auto",
+                   help="clicks from the click logit's peaks, or (a model with a when head) student.WhenScheduler; "
+                        "auto: logit (sched lost 4.3 points in the game, 2026-11-18)")
+    p.add_argument("--aim-offset", type=float, nargs=2, default=None, metavar=("DX", "DY"),
+                   help="osu! px added to where the cursor is sent (the student keeps its own idea of where it is)")
+    p.add_argument("--hold-th", type=float, default=-1.5,
+                   help="hold logit under which a held key is let go (2026-11-18 A/B: -1.5 +0.83 points over 0)")
     p.add_argument("--hold-press", type=float, default=None,
                    help="press a key when none is down and the hold logit is over this (spinners); default off")
     p.add_argument("--no-record", dest="record", action="store_false", help="do not keep the frames")
@@ -381,6 +413,8 @@ def main():
     p.add_argument("--background", action="store_true",
                    help="play behind other windows: capture the fork's window itself, input over the bridge (the "
                         "computer stays free to use)")
+    p.add_argument("--oracle", choices=["aim", "keys", "both"], default=None,
+                   help="diagnostic: the cursor (aim), the keys (keys) or both from the map instead of the student (live.oracle)")
     p.add_argument("--out", default="runs/collect")
     Session(p.parse_args()).run()
 

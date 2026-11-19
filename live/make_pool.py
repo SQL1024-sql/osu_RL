@@ -63,11 +63,11 @@ def teacher_acc(path):
 def candidates(a, split):
     rows = []
     for r in csv.DictReader(open("maps/hf/index.csv", encoding="utf-8")):
-        if r["split"] != split or r["beatmap_id"] in LIVE_IDS or r["approved"] not in ("1", "2"):
+        if r["split"] not in split.split(",") or r["beatmap_id"] in LIVE_IDS or r["approved"] not in ("1", "2"):
             continue
         st, ln, cs, ar = float(r["stars"]), float(r["hit_length"]), float(r["cs"]), float(r["ar"])
         if a.min_stars <= st <= a.max_stars and a.min_len <= ln <= a.max_len and 3.0 <= cs <= a.max_cs and 7.0 <= ar <= a.max_ar:
-            r["path"] = f"maps/hf/{split}/{r['beatmap_id']}.osu"
+            r["path"] = f"maps/hf/{r['split']}/{r['beatmap_id']}.osu"
             if os.path.exists(r["path"]):
                 rows.append(r)
     rng = np.random.default_rng(a.seed)
@@ -94,12 +94,14 @@ def main():
     p.add_argument("--teacher-min", type=float, default=0.95, help="the teacher's simulator accuracy a map needs")
     p.add_argument("--procs", type=int, default=3)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--gate-splits", default="val", help="HF splits gate maps come from (val,test: above 6.5 stars val "
+                   "has one map in range)")
     a = p.parse_args()
     tag = "pool" if os.path.normpath(a.out) == os.path.normpath(OUT) else os.path.basename(os.path.normpath(a.out))
     info_path = os.path.join(a.out, "pool.json")
     os.makedirs(a.out, exist_ok=True)
     info = json.load(open(info_path)) if os.path.exists(info_path) else {}
-    for split, sub, want in (("train", "train", a.train), ("val", "gate", a.gate)):
+    for split, sub, want in (("train", "train", a.train), (a.gate_splits, "gate", a.gate)):
         d = os.path.join(a.out, sub)
         os.makedirs(d, exist_ok=True)
         have = len(glob.glob(os.path.join(d, "*.osu")))

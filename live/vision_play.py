@@ -144,6 +144,21 @@ class WindowCapture:
     def is_alive(self):
         return self._control is not None and not self.stop and not self._control.is_finished()
 
+    def close(self, timeout=5.0):
+        """Stop the capture thread and wait for it, before the window goes away: a capture left running on a window
+        that was killed made the next start_free_threaded crash the process (access violation, 2026-11-18: every
+        collect whose fork restarted for memory died there silently)."""
+        self.stop = True
+        if self._control is None:
+            return
+        try:
+            self._control.stop()
+        except Exception:
+            pass
+        t0 = time.time()
+        while not self._control.is_finished() and time.time() - t0 < timeout:
+            time.sleep(0.05)
+
     frames = Capture.frames
     fps = Capture.fps
 
@@ -166,6 +181,22 @@ class VisionPlayer:
         self.hold_press = None  # hold logit over which a key is pressed when none is down (None: off)
         self.rearm_drop = None  # click logit drop from its peak that allows the next click while still over the threshold
         self.smooth = None  # weight of the new move against the last one (None: off; 0.5 averages the two)
+        # hold logit under which a held key is let go: aim6 let go of half its missed slider tails ~100 ms early with
+        # the cursor still on the ball. 2026-11-18 A/B (live.ablate, 18 gate plays each): 0 80.95%, -1.5 81.78%
+        # (+0.83 +- 0.22 by map, slider tail misses 12.5 -> 8.3), -3 81.62% (tails 6.2, but more head misses: both
+        # keys held more often delays the next click)
+        self.hold_th = -1.5
+        # osu! px added to where the cursor is sent (the student keeps its own idea of where it is): its clicks land
+        # about (-11, +10) px off the circles. Each checkpoint's own from <ckpt>.aim.json (student.aim_offset_of),
+        # read again by load(); aim_offset_fixed (live.collect --aim-offset) overrides it for every model
+        self.aim_offset_fixed = None
+        self.aim_offset = S.aim_offset_of(ckpt)
+        self.oracle = None  # live.oracle.Oracle for the map being played: perfect aim and / or keys (a diagnostic)
+        # "sched": clicks from the when head with student.WhenScheduler, "logit" or "auto" (the default): the click
+        # logit's peaks. sched lost 4.3 points to logit with the same model in the game (f4ws, runs/ablate/
+        # 20261118-071906): it skipped stream notes and the next press went to the one before; the when head is worth
+        # keeping as a training signal only. sched_margin: ms before its target that a key may go down
+        self.decoder, self.sched_margin = "auto", 8.0
         self.dev = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = S.make_model(ckpt, self.dev)  # with a close-up branch if the checkpoint has one
         self._warm_up()
@@ -181,13 +212,14 @@ class VisionPlayer:
     def load(self, ckpt):
         """Play with other weights from now on (the network is rebuilt if it has, or lacks, a close-up branch)."""
         sd = torch.load(ckpt, map_location=self.dev)
-        if S.fovea_of(sd) != (self.model.fovea_side or 0):
+        if S.fovea_of(sd) != (self.model.fovea_side or 0) or ("when.weight" in sd) != (self.model.when is not None):
             self.model = S.make_model(sd, self.dev)
             self._warm_up()
         else:
             self.model.load_state_dict(sd)
             self.model.eval()
         self.ckpt = ckpt
+        self.aim_offset = S.aim_offset_of(ckpt) if self.aim_offset_fixed is None else self.aim_offset_fixed
 
     def attach(self, bench=False, wait=True):
         """Find lazer's window and playfield (it must be in front unless bench; wait: until it is), start capturing
@@ -203,8 +235,7 @@ class VisionPlayer:
             field.scale = sh / (H / PX)
             field.x0, field.y0 = box["left"] - X0 * field.scale, box["top"] - Y0 * field.scale
         if box != self.box or self.cap is None or not self.cap.is_alive():
-            if self.cap:
-                self.cap.stop = True
+            self.release_capture()
             self.cap = WindowCapture(field.hwnd, box) if self.background else Capture(box)
             self.cap.start()
             t0 = time.time()
@@ -230,11 +261,13 @@ class VisionPlayer:
         ctypes.windll.user32.GetCursorPos(self._pt)
         return np.array([(self._pt[0] - self.field.x0) / self.field.scale, (self._pt[1] - self.field.y0) / self.field.scale])
 
-    def play(self, clock, record=False, start_timeout=None, bench=0, on_lost_focus=None, max_seconds=None):
+    def play(self, clock, record=False, start_timeout=None, bench=0, on_lost_focus=None, max_seconds=None, stop=None):
         """One map: idle until clock.playing (None if it does not start within start_timeout s), then play until it
         stops (the map ended, or the game paused) or for max_seconds at most. on_lost_focus(): called when the game is
-        not in front; returns True once it is back, False to give up on the map. -> dict(log=(n, len(COLS)),
-        frames=[(capture time, frame)] if record, lost_focus=bool, timed_out=bool)."""
+        not in front; returns True once it is back, False to give up on the map. stop(): True to give up on the map
+        now (a skipped request). -> dict(log=(n, len(COLS)), frames=[(capture time, frame)] if record,
+        lost_focus=bool, timed_out=bool, stopped=bool)."""
+        stopped = False
         t_live, timed_out = None, False
         dev, model, cap, field, tablet = self.dev, self.model, self.cap, self.field, self.tablet
         if self.background and not self.dry_run and not bench:
@@ -247,11 +280,16 @@ class VisionPlayer:
         held, last, clicked = np.zeros(2, bool), 0, False
         prev, fired, last_fire, step = -np.inf, False, -10 ** 9, 0
         peak, m_prev = -np.inf, np.zeros(2)
+        use_sched = self.decoder == "sched" and self.model.when is not None
+        sched = S.WhenScheduler(margin=self.sched_margin) if use_sched else None
         t_wait = nxt = time.perf_counter()
         try:
             while True:
                 playing = bool(bench) or (clock.playing and clock.model is not None)
                 if bench and step >= bench:
+                    break
+                if stop is not None and stop():
+                    stopped = True
                     break
                 if not playing:
                     if live:
@@ -297,12 +335,16 @@ class VisionPlayer:
                 aux = torch.tensor([[cur[0] / 512, cur[1] / 384, lat_ms / S.MAX_LAT]], dtype=torch.float32, device=dev)
                 with torch.no_grad(), S.autocast(dev):
                     m, kl = S.apply_model(model, img, crop, aux)
+                    wp = torch.softmax(model.when(model.last_h).float(), 1)[0] if sched is not None else None
                 m, (c, h) = m.float().cpu().numpy()[0], kl.float().cpu().numpy()[0]
+                game = (now - clock.model[0]) * 1000 if clock is not None and clock.model is not None else np.nan
                 if self.smooth is not None:  # the move averaged with the last one: damps the step-to-step zigzag
                     m = self.smooth * m + (1 - self.smooth) * m_prev
                 m_prev = m
                 # keys exactly as student.rollouts: one click per peak of the click logit above the threshold
                 fire = prev > S.CLICK_TH and c < prev and not fired and step - last_fire >= S.CLICK_GAP
+                if sched is not None:  # the when head's schedule instead (the key goes down as this step is sent)
+                    fire = np.isfinite(game) and sched.step(game, wp.cpu().numpy(), game) and step - last_fire >= S.CLICK_GAP
                 # no key down while the hold logit is sure a key should be (hold_press): press one. A spinner right after
                 # a slider gets a click logit just under the threshold, then a hold logit over +10 with no key to hold:
                 # every fine-tuned candidate failed every spinner that way, r001 cleared the threshold by a hair
@@ -322,13 +364,22 @@ class VisionPlayer:
                         fired = False
                 fired = (fired or fire) and c > S.CLICK_TH
                 prev = c
-                act, last, clicked = S.keys_for(fire, h > 0 or step - last_fire <= S.MIN_HOLD, held, last, clicked)
+                act, last, clicked = S.keys_for(fire, h > self.hold_th or step - last_fire <= S.MIN_HOLD, held, last, clicked)
                 held = act > 0
                 buttons = (M1 if held[0] else 0) | (M2 if held[1] else 0)
+                orc = self.oracle if self.oracle is not None and np.isfinite(game) else None
+                if orc is not None and orc.mode in ("keys", "both"):  # keys from the map (live.oracle), on the nearest step
+                    ob = orc.buttons(game + S.DT / 2)
+                    held = np.array([bool(ob & 1), bool(ob & 2)])
+                    buttons = (M1 if held[0] else 0) | (M2 if held[1] else 0)
                 if not self.dry_run:
-                    cur = np.clip(cur + m * MAX_CURSOR_SPEED * S.DT, -CURSOR_MARGIN, CURSOR_MAX)
+                    if orc is not None and orc.mode in ("aim", "both"):  # where the map says, for the next step
+                        cur = np.asarray(orc.pos(game + S.DT), float)
+                    else:
+                        cur = np.clip(cur + m * MAX_CURSOR_SPEED * S.DT, -CURSOR_MARGIN, CURSOR_MAX)
                     try:
-                        tablet.send(*(cur if self.background else field(*cur)), buttons)
+                        at = cur + self.aim_offset
+                        tablet.send(*(at if self.background else field(*at)), buttons)
                     except LostFocus:
                         held[:] = False
                         lost = True
@@ -341,7 +392,6 @@ class VisionPlayer:
                             break
                     hist.append((time.perf_counter(), cur.copy()))
                     cap.cursor = cur.copy()
-                game = (now - clock.model[0]) * 1000 if clock is not None and clock.model is not None else np.nan
                 if self.view and self.view.want():  # the newest input frame, copied only as often as it is shown
                     self.view.put(img[0, 0].mul(255).byte().cpu().numpy(), cur, m, held, fire, game)
                 log.append((now, game, *cur, *m, c, h, fire, buttons, lat_ms, newest))
@@ -360,7 +410,7 @@ class VisionPlayer:
             frames, cap.keep_all = cap.keep_all, None
             self._cur = np.array(cur, float)
         return dict(log=np.array(log, dtype=np.float64).reshape(-1, len(COLS)), frames=frames if record else None,
-                    lost_focus=lost, timed_out=timed_out)
+                    lost_focus=lost, timed_out=timed_out, stopped=stopped)
 
     def save(self, result, out, md5, clock_name, extra=None):
         """Writes a play's log to out (.npz) and, if it was recorded, its frames to <out>-rec.npz. -> rec path or None."""
@@ -385,10 +435,18 @@ class VisionPlayer:
                             **fov)
         return rec
 
-    def close(self):
+    def release_capture(self):
+        """Stop the screen capture (and wait for a window capture's thread) before the window goes away."""
         if self.cap:
-            self.cap.stop = True
+            if hasattr(self.cap, "close"):
+                self.cap.close()
+            else:
+                self.cap.stop = True
             self.cap = None
+            self.box = None
+
+    def close(self):
+        self.release_capture()
         if self.tablet:
             self.tablet.close()
             self.tablet = None

@@ -47,9 +47,14 @@ CLICK_GAP = 0  # steps a click must wait after the last one (a logit that dips b
 # steps after a click that its key stays held whatever the hold logit says (Exp 031): the hold logit only rises once
 # the frames show the slider started, a few steps after its head was clicked, and a key let go is never pressed again
 MIN_HOLD = 0
+# steps before an object's click step that map_keys labels as a click. 2 merged the labels of objects 2-3 steps apart
+# into one wide stretch, so a stream got one broad click logit peak, one click for two objects (13-26 misses a play,
+# 2026-11-14); live.finetune_real --click-steps 1
+CLICK_LABEL_STEPS = 2
 # live.vision_play's play options, mirrored in rollouts so a simulated play goes where a live one would (live.sim_dagger)
 SMOOTH = None  # weight of each new move against the last one
 HOLD_PRESS = None  # hold logit over which a key is pressed when none is down
+HOLD_TH = -1.5  # hold logit under which a held key is let go (live.vision_play VisionPlayer.hold_th; 0 before 2026-11-18)
 AUX = 3  # cursor x, y, latency (the last move or held keys as inputs get copied: the student keeps doing what it did)
 
 _scenes = {}
@@ -149,7 +154,7 @@ def map_keys(sc, t, cursor, key):
             if not len(on):
                 continue
             k = k0 + int(on[np.argmin(np.abs(t[k0 + on] - s0))])
-        click[max(0, k - 2):k] = True  # the two steps before it: the rule fires the step after the peak
+        click[max(0, k - CLICK_LABEL_STEPS):k] = True  # the steps before it: the rule fires the step after the peak
         if sc.kind[j] != CIRCLE:
             d[k] += 1
             d[max(k + 1, int(np.searchsorted(t, sc.end[j])))] -= 1
@@ -262,8 +267,9 @@ def augment(x, rng):
 
 
 class Student(nn.Module):
-    def __init__(self, where=False, fovea=None):
-        """fovea: side of the close-up it also looks at (0: none; None: the module's FOVEA)."""
+    def __init__(self, where=False, fovea=None, when=0):
+        """fovea: side of the close-up it also looks at (0: none; None: the module's FOVEA). when: classes of an extra
+        head for the time until the next circle / slider head (WHEN_MS each), read by its own decoder; 0: none."""
         super().__init__()
         fovea = FOVEA if fovea is None else fovea
         self.fovea_side = fovea
@@ -286,6 +292,8 @@ class Student(nn.Module):
         self.head = nn.Sequential(nn.Linear(128 * 8 * 10 + extra + AUX, 256), nn.ReLU(), nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, 4))
         # training only: predict the next object's x, y and time to hit, so the CNN has to find it on screen
         self.where = nn.Linear(256, 3) if where else None
+        self.when = nn.Linear(256, when) if when else None
+        self.last_h = None  # the input of the last layer from the last forward (the when head reads it)
 
     def forward(self, frames, *rest):
         z = self.conv(frames.to(memory_format=torch.channels_last)).flatten(1)
@@ -293,6 +301,7 @@ class Student(nn.Module):
         if self.fovea is not None:
             z = torch.cat([z, self.fovea(rest[0].to(memory_format=torch.channels_last)).flatten(1)], 1)
         h = self.head[:-1](torch.cat([z, aux], 1))
+        self.last_h = h
         out = self.head[-1](h)
         if self.training and self.where is not None:
             return torch.tanh(out[:, :2]), out[:, 2:], self.where(h)
@@ -300,6 +309,43 @@ class Student(nn.Module):
 
 
 CONV_FEATURES = 128 * 8 * 10
+WHEN_MS, WHEN_CLASSES = 4.0, 63  # the when head: 0-4, 4-8, ... ms until the next object; the last class is ">= 248 ms"
+
+
+class WhenScheduler:
+    """Clicks from the when head (Student.when) as a schedule: on each step where the next circle / slider head is
+    likely within horizon_ms (probability mass >= min_mass), its time is now + the most likely class (a mean falls
+    between two stream notes); the median of the last `keep` such times that agree (within same_ms) is the target.
+    A key goes down once the press time reaches target - margin, for an object first seen coming at least min_lead ms
+    ahead (just after a click the head keeps saying "due now" for the object it was for, and that drifting "now" fired
+    again: 12-16 extra clicks a play), and a target is never fired twice. Offline on 12 unseen gate plays it found
+    95.4% of the objects (the click logit's rule: 94.1%) with 8.7 extra clicks a play (10.6), 2026-11-18."""
+
+    def __init__(self, horizon_ms=100.0, min_mass=0.2, keep=6, same_ms=25.0, margin=8.0, min_lead=16.0):
+        self.horizon, self.min_mass, self.keep, self.same, self.margin, self.min_lead = horizon_ms, min_mass, keep, same_ms, margin, min_lead
+        self.centres = (np.arange(WHEN_CLASSES) + 0.5) * WHEN_MS
+        self.reset()
+
+    def reset(self):
+        self.est, self.lead, self.last_fired = [], 0.0, -1e9
+
+    def step(self, t, probs, press_t):
+        """t: the step's time (ms, what the head's "until" counts from); probs: its class probabilities; press_t: when a
+        key sent now goes down. -> True to click now."""
+        hb = int(self.horizon / WHEN_MS)
+        if probs[:hb].sum() < self.min_mass:
+            self.est, self.lead = [], 0.0
+            return False
+        tgt = t + self.centres[int(np.argmax(probs[:hb]))]
+        if self.est and abs(np.median(self.est) - tgt) > self.same:
+            self.est, self.lead = [], 0.0
+        self.est = self.est[-(self.keep - 1):] + [tgt]
+        self.lead = max(self.lead, tgt - t)
+        m = float(np.median(self.est))
+        if self.lead >= self.min_lead and abs(m - self.last_fired) > self.same and press_t >= m - self.margin:
+            self.last_fired = m
+            return True
+        return False
 
 
 def fovea_of(sd):
@@ -314,9 +360,28 @@ def fovea_of(sd):
 def make_model(ckpt, device):
     """The student network a checkpoint (path or state dict) needs, with its weights, on device, in eval mode."""
     sd = torch.load(ckpt, map_location=device) if isinstance(ckpt, str) else ckpt
-    model = Student(fovea=fovea_of(sd)).to(device).to(memory_format=torch.channels_last)
+    when = sd["when.weight"].shape[0] if "when.weight" in sd else 0
+    model = Student(fovea=fovea_of(sd), when=when).to(device).to(memory_format=torch.channels_last)
     model.load_state_dict(sd)
     return model.eval()
+
+
+def aim_offset_of(ckpt):
+    """osu! px a checkpoint's cursor is sent off its own idea of where it is ([0, 0] without a <ckpt>.aim.json): the
+    students click about (-11, +10) px off the circles, a fixed shift learnt in the simulator, and sending (+13, -10)
+    gained 3.50 +- 1.36 points in the game (f4ws, runs/ablate/20261118-075015). Each model has its own."""
+    import json
+    p = str(ckpt) + ".aim.json"
+    if not isinstance(ckpt, str) or not os.path.exists(p):
+        return np.zeros(2)
+    with open(p, encoding="utf-8") as f:
+        return np.array(json.load(f)["aim_offset"], float)
+
+
+def save_aim_offset(ckpt, offset, why=""):
+    import json
+    with open(str(ckpt) + ".aim.json", "w", encoding="utf-8") as f:
+        json.dump(dict(aim_offset=[round(float(v), 2) for v in offset], why=why), f, ensure_ascii=False, indent=1)
 
 
 def warm_start_fovea(sd, side=96):
@@ -475,7 +540,7 @@ def rollouts(jobs, student, drive, procs, maps):
                     last_fire[jid] = steps[jid]
                 fired[jid] = (fired[jid] or fire) and c > CLICK_TH
                 prev[jid] = c
-                hold = h > 0 or steps[jid] - last_fire[jid] <= MIN_HOLD
+                hold = h > HOLD_TH or steps[jid] - last_fire[jid] <= MIN_HOLD
                 actions[n, 2:], last[jid], clicked[jid] = keys_for(fire, hold, batch[n][6], last[jid], clicked[jid])
         for w in active:
             conns[w].send({s: actions[n] for n, (ww, s, *_) in enumerate(batch) if ww == w})

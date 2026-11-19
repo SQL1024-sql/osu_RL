@@ -12,6 +12,11 @@ the stream machine. Between maps it is checked (the same network, weights that l
 runs/stream/models/ and plays from the next map on, a bad one is moved to runs/stream/bad/ and the old one keeps
 playing. runs/stream/state.json says which model plays; restarting picks it up. Without one yet, the model live.improve
 was playing when the bundle was made (runs/improve/state.json) starts.
+
+One fork for everything: the same copy (OSU_RL_INSTANCE, started with OSU_RL_LAZER_SERVER) can be logged into the
+AI's account and sit in multiplayer rooms for live.room_play. Before every map (the student's or a request) this asks
+the fork (live.room_play.solo_problem) and holds the map while it is in a room, or logged into anything but the AI's
+account (OSU_RL_AI_USERNAME) on the private server (OSU_RL_SERVER); not logged in at all is fine.
 """
 import argparse
 import glob
@@ -20,6 +25,7 @@ import os
 import shutil
 import sys
 import time
+import traceback
 
 import torch
 
@@ -39,6 +45,15 @@ def improve_current():
         return json.load(open(IMPROVE_STATE))["current"]
     except (OSError, KeyError, ValueError):
         return START
+
+
+def student_ckpt():
+    """The student model on stream: the one live.stream plays now (runs/stream/state.json), else improve_current().
+    live.requests and live.room_play play with it too (vision only)."""
+    try:
+        return json.load(open(STATE))["current"]
+    except (OSError, KeyError, ValueError):
+        return improve_current()
 
 
 def model_name(path):
@@ -84,6 +99,14 @@ class Streamer:
         self.session.overlay_head = self.overlay_lines
         self._session_play = self.session.play
         self.session.play = self.play  # Session.run's loop, with the inbox checked before every map
+        self.requests, self.request = None, None
+        if a.requests:
+            from live.requests import Requests, RoomWatch, serve, settings
+            token = settings().get("OSU_RL_CONTROL_TOKEN", "")
+            if len(token) < 16:
+                raise SystemExit("--requests needs OSU_RL_CONTROL_TOKEN (16+ characters) in the environment or live/.env")
+            self.requests = Requests(per_person=a.per_person, feel=a.feel, hold=RoomWatch(token=token))
+            serve(self.requests, a.requests, token, a.requests_host)
         self.save()
 
     def save(self):
@@ -93,7 +116,12 @@ class Streamer:
 
     def overlay_lines(self):
         since = time.strftime("%m/%d %H:%M", time.localtime(self.state.get("since", time.time())))
-        return ["osu_rl 直播中", f"上場模型：{model_name(self.state['current'])}（{since} 換上）"]
+        lines = ["osu_rl 直播中", f"上場模型：{model_name(self.state['current'])}（{since} 換上）"]
+        if self.request:
+            lines.append(f"點播：{self.request['title']}（{self.request['by']} 點的）")
+        if self.requests and self.requests.queue:
+            lines.append(f"接下來還有 {len(self.requests.queue)} 首點播")
+        return lines
 
     def check_inbox(self):
         """A model dropped into runs/stream/new/ (the newest, if several) takes over; the others are set aside."""
@@ -131,7 +159,60 @@ class Streamer:
             self.check_inbox()
         except Exception as e:  # a model handover must never stop the stream
             self.session.say(f"[stream] checking {NEW} failed: {type(e).__name__}: {e}")
+        self.play_requests()
+        self.wait_solo()
         return self._session_play(path)
+
+    def wait_solo(self):
+        """Holds the next map (a request or the student's) while the fork may not play one of its own
+        (live.room_play.solo_problem): in a multiplayer room, where live.room_play plays and starting a map would take
+        it out of the room, or logged into anything but the AI's account on the private server."""
+        from live.room_play import guard_settings, solo_problem
+        said = None
+        while True:
+            try:
+                self.session.connect()
+                problem = solo_problem(self.session.clock.call(cmd="status", timeout=10) or {}, *guard_settings())
+            except Exception as e:
+                problem = f"no answer from the fork ({type(e).__name__}: {e})"
+                clock = self.session.clock
+                self.session.clock = None if clock is None or not clock.connected else clock
+            if problem is None:
+                if said:
+                    self.session.say("[stream] the fork is free again: playing on")
+                return
+            if problem != said:
+                self.session.say(f"[stream] holding the next map: {problem}")
+                self.session.status("held", why=problem)
+                said = problem
+            time.sleep(3)
+
+    def play_requests(self):
+        """Viewers' requests (live.requests) before the next map of the set, played by the same vision student."""
+        if self.requests is None:
+            return
+        from live.requests import play_request
+        while True:
+            self.wait_solo()  # before each request: the fork may have gone into a room meanwhile
+            item = self.requests.take()
+            if item is None:
+                break
+            self.request = item
+            try:
+                self.session.connect()
+                self.session.status("playing", map=item["osu"])
+                result = play_request(self.session.clock, item, self.session.player, self.session.say, self.requests.skip,
+                                      os.path.join(DIR, "requests"))
+            except Exception as e:  # a request must never stop the stream
+                result = dict(accuracy=None, error=f"{type(e).__name__}: {e}")
+                self.session.say(traceback.format_exc())
+                clock = self.session.clock
+                self.session.clock = None if clock is None or not clock.connected else clock
+            finally:
+                self.request = None
+            self.requests.finish(result)
+            self.session.say(f"[stream] request #{item['no']} {item['title']} ({item['by']}): {result}")
+            self.session.status("between maps")
 
     def run(self):
         self.session.say(f"[stream] playing with {self.state['current']}; drop a new model into {os.path.abspath(NEW)}")
@@ -155,6 +236,13 @@ def main():
     p.add_argument("--view-style", choices=["neuro", "input"], default="neuro")
     p.add_argument("--no-hud", action="store_true",
                    help="hide the score, accuracy and combo (shown on the stream by default; the leaderboard never is)")
+    p.add_argument("--requests", type=int, default=0, metavar="PORT",
+                   help="take viewers' map requests on this port (live.requests), played by the state model before the "
+                        "next map of the set; 0: off")
+    p.add_argument("--requests-host", default="127.0.0.1", help="0.0.0.0 when Miyoria runs on another machine")
+    p.add_argument("--feel", default="good", choices=["full", "pro", "good", "casual"],
+                   help="how human a request is played when it names no feel (live.humanize)")
+    p.add_argument("--per-person", type=int, default=2, help="requests one person may have waiting at once")
     a = p.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")  # Chinese messages in any console
     if a.export:
