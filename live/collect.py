@@ -169,7 +169,9 @@ class Session:
         self.say(f"connected to the fork: {st}")
         # the student's skin, no HUD, a borderless window (stays up behind other windows; fullscreen minimizes); in the
         # background nobody is at the mouse, so no menu cursor follows it on the stream
-        setup = dict(cmd="setup", skin=SKIN_NAME, window="borderless", hud=False)
+        # (args.hud: live.stream shows the score, accuracy and combo to viewers; they sit outside the student's frame
+        # but its bottom edge, where the hit error bar is. The gameplay leaderboard is off in any case: bridge.launch)
+        setup = dict(cmd="setup", skin=SKIN_NAME, window="borderless", hud=bool(getattr(self.args, "hud", False)))
         if self.args.background:
             setup["cursor"] = False
         r = self.clock.call(**setup)

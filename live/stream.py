@@ -79,7 +79,7 @@ class Streamer:
                                    record=a.record, min_fps=50, max_gb=a.max_gb, restart_fork_mb=6000,
                                    out=os.path.join(DIR, "plays"), background=not a.foreground, view=a.view or None,
                                    view_style=a.view_style, overlay=os.path.join(DIR, "overlay.txt"),
-                                   hold_press=a.hold_press, smooth=a.smooth)
+                                   hold_press=a.hold_press, smooth=a.smooth, hud=not a.no_hud)
         self.session = Session(sargs)
         self.session.overlay_head = self.overlay_lines
         self._session_play = self.session.play
@@ -153,6 +153,8 @@ def main():
     p.add_argument("--min-hold", type=int, default=5)
     p.add_argument("--view", type=int, default=8770, metavar="PORT", help="the student's view for OBS; 0: off")
     p.add_argument("--view-style", choices=["neuro", "input"], default="neuro")
+    p.add_argument("--no-hud", action="store_true",
+                   help="hide the score, accuracy and combo (shown on the stream by default; the leaderboard never is)")
     a = p.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")  # Chinese messages in any console
     if a.export:

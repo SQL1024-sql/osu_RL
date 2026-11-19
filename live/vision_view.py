@@ -107,6 +107,7 @@ class View:
         self.scale, self.hud, self.dt = scale, hud, 1 / fps
         self.style, self.neuro, self.show_cursor = style, None, show_cursor
         self.mime = "image/png" if style == "neuro" else "image/jpeg"
+        self.blank = False  # the last frame sent was the empty one (style "neuro" between maps)
         if style == "neuro":
             idle = None  # between maps: nothing (the page is transparent then)
         self.idle = idle            # () -> newest raw (H, W) uint8 frame, shown while the student is not deciding
@@ -208,7 +209,11 @@ class View:
                     raw = None
                 if raw is not None:
                     img = self.upscale(raw)
+            elif self.style == "neuro" and not self.blank:
+                # no map being played: one fully transparent frame, so the corner does not hold the map's last moment
+                img = np.zeros((H * self.scale, W * self.scale, 4), np.uint8)
             if img is not None:
+                self.blank = self.style == "neuro" and not img[..., 3].any()
                 if img.shape[2] == 4:
                     ok, buf = cv2.imencode(".png", img, [cv2.IMWRITE_PNG_COMPRESSION, 1])
                 else:
